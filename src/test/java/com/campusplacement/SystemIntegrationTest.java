@@ -134,6 +134,11 @@ public class SystemIntegrationTest {
         assertTrue(added, "Student should be added");
         assertTrue(s.getStudentId() > 0, "Generated ID should be set");
 
+        // Verify that newly registered student can immediately log in
+        LoginManagement.UserSession newStudentSession = LoginManagement.authenticate(testRoll.toLowerCase(), "student123");
+        assertNotNull(newStudentSession, "Newly registered student should be able to log in");
+        assertTrue(newStudentSession.isStudent(), "Role should be STUDENT");
+
         // Duplicate Roll Number Rejection
         Student dup = new Student(0, testRoll, "Duplicate Roll Student", "unique_" + System.currentTimeMillis() + "@college.edu",
                                  "9998887775", "Information Tech", 8.0, 2026, "Java", 0);

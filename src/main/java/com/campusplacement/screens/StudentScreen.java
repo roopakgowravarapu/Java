@@ -18,7 +18,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -271,9 +270,6 @@ public class StudentScreen {
 
         TextField backlogsField = new TextField("0");
 
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Default: <rollnumber>123 if blank");
-
         if (isEdit) {
             rollField.setText(studentToEdit.getRollNumber());
             nameField.setText(studentToEdit.getFullName());
@@ -305,16 +301,11 @@ public class StudentScreen {
         grid.add(new Label("Backlogs:"), 0, 8);
         grid.add(backlogsField, 1, 8);
 
-        if (!isEdit) {
-            grid.add(new Label("Portal Password:"), 0, 9);
-            grid.add(passwordField, 1, 9);
-        }
-
         Label errorMsg = new Label();
         errorMsg.setStyle("-fx-text-fill: #dc2626; -fx-font-weight: bold; -fx-font-size: 12px;");
         errorMsg.setWrapText(true);
         errorMsg.setVisible(false);
-        grid.add(errorMsg, 0, isEdit ? 9 : 10, 2, 1);
+        grid.add(errorMsg, 0, 9, 2, 1);
 
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(javafx.scene.control.ButtonType.OK, javafx.scene.control.ButtonType.CANCEL);
@@ -352,13 +343,7 @@ public class StudentScreen {
                 s.setSkills(skillsField.getText());
                 s.setBacklogCount(backlogs);
 
-                boolean ok;
-                if (isEdit) {
-                    ok = StudentManagement.updateStudent(s);
-                } else {
-                    ok = StudentManagement.addStudent(s, passwordField.getText());
-                }
-
+                boolean ok = isEdit ? StudentManagement.updateStudent(s) : StudentManagement.addStudent(s);
                 if (!ok) {
                     errorMsg.setText("Could not save student record to database.");
                     errorMsg.setVisible(true);
@@ -381,21 +366,17 @@ public class StudentScreen {
 
         dialog.showAndWait().ifPresent(confirmed -> {
             if (Boolean.TRUE.equals(confirmed)) {
-                if (isEdit) {
-                    AlertUtil.showInfo("Success", "Student academic profile updated.");
-                } else {
-                    String assignedPwd = (passwordField.getText() != null && !passwordField.getText().trim().isEmpty())
-                            ? passwordField.getText().trim()
-                            : (rollField.getText().trim().toLowerCase() + "123");
-                    AlertUtil.showInfo(
-                            "Student Registered Successfully",
-                            "Student profile and portal login account created!\n\n"
-                                    + "Student Login Credentials:\n"
-                                    + "• Username: " + rollField.getText().trim().toLowerCase() + " (or email: " + emailField.getText().trim() + ")\n"
-                                    + "• Password: " + assignedPwd + "\n\n"
-                                    + "The student can now log in directly from the login screen."
-                    );
-                }
+                String roll = rollField.getText().trim().toLowerCase();
+                String email = emailField.getText().trim();
+                String msg = isEdit 
+                    ? "Student profile and user account updated successfully." 
+                    : "Student successfully registered and login account created!\n\n"
+                      + "STUDENT LOGIN CREDENTIALS:\n"
+                      + "• Username: " + roll + "\n"
+                      + "• Or Email: " + email + "\n"
+                      + "• Default Password: student123\n\n"
+                      + "The student can now immediately log in from the login screen!";
+                AlertUtil.showInfo(isEdit ? "Record Updated" : "Student Registered & Account Created", msg);
                 loadStudentsAsync();
             }
         });

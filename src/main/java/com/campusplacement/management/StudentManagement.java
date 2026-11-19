@@ -58,24 +58,24 @@ public class StudentManagement {
     }
 
     /**
-     * Inserts a new student into the database and automatically provisions
-     * a login user account in the users table within an atomic transaction.
+     * Inserts a new student into the database with validation and automatically
+     * provisions their student portal login credentials in the users table.
      */
-    public static boolean addStudent(Student student, String plainPassword) throws SQLException {
+    public static boolean addStudent(Student student) throws SQLException {
         validateStudent(student, 0);
 
-        String insertStudentSql = "INSERT INTO students (roll_number, full_name, email, phone_number, "
+        String sql = "INSERT INTO students (roll_number, full_name, email, phone_number, "
                    + "department, cgpa, graduation_year, skills, backlog_count) "
                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        String insertUserSql = "INSERT INTO users (username, password_hash, role, email, student_id) "
-                   + "VALUES (?, ?, 'STUDENT', ?, ?)";
+        String userSql = "INSERT INTO users (username, password_hash, role, email, student_id) "
+                       + "VALUES (?, ?, 'STUDENT', ?, ?)";
 
         try (Connection conn = DBConnection.getConnection()) {
-            conn.setAutoCommit(false); // Begin Transaction
+            conn.setAutoCommit(false);
             try {
-                int studentId = 0;
-                try (PreparedStatement stmt = conn.prepareStatement(insertStudentSql, Statement.RETURN_GENERATED_KEYS)) {
+                int newStudentId = 0;
+                try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                     stmt.setString(1, student.getRollNumber().trim().toUpperCase());
                     stmt.setString(2, student.getFullName().trim());
                     stmt.setString(3, student.getEmail().trim());
@@ -90,36 +90,33 @@ public class StudentManagement {
                     if (affectedRows > 0) {
                         try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                             if (generatedKeys.next()) {
-                                studentId = generatedKeys.getInt(1);
-                                student.setStudentId(studentId);
+                                newStudentId = generatedKeys.getInt(1);
+                                student.setStudentId(newStudentId);
                             }
                         }
-                    } else {
-                        conn.rollback();
-                        return false;
                     }
                 }
 
-                // Automatically provision Student Login Account in users table
-                String pwd = (plainPassword != null && !plainPassword.trim().isEmpty())
-                        ? plainPassword.trim()
-                        : (student.getRollNumber().trim().toLowerCase() + "123");
-                String passwordHash = ValidationUtil.hashPassword(pwd);
+                if (newStudentId > 0) {
+                    // Automatically provision login credentials for the new student
+                    try (PreparedStatement uStmt = conn.prepareStatement(userSql)) {
+                        String username = student.getRollNumber().trim().toLowerCase();
+                        String defaultPassword = "student123";
+                        String hash = ValidationUtil.hashPassword(defaultPassword);
 
-                try (PreparedStatement stmt = conn.prepareStatement(insertUserSql)) {
-                    // Student can log in with roll number (lowercase) or email
-                    stmt.setString(1, student.getRollNumber().trim().toLowerCase());
-                    stmt.setString(2, passwordHash);
-                    stmt.setString(3, student.getEmail().trim().toLowerCase());
-                    stmt.setInt(4, studentId);
-                    stmt.executeUpdate();
+                        uStmt.setString(1, username);
+                        uStmt.setString(2, hash);
+                        uStmt.setString(3, student.getEmail().trim().toLowerCase());
+                        uStmt.setInt(4, newStudentId);
+                        uStmt.executeUpdate();
+                    }
                 }
 
-                conn.commit(); // Commit Transaction
+                conn.commit();
                 return true;
             } catch (Exception ex) {
                 conn.rollback();
-                throw new SQLException("Failed to register student and user account: " + ex.getMessage(), ex);
+                throw ex;
             } finally {
                 conn.setAutoCommit(true);
             }
@@ -127,14 +124,7 @@ public class StudentManagement {
     }
 
     /**
-     * Overload for adding student with default rollNumber + "123" password.
-     */
-    public static boolean addStudent(Student student) throws SQLException {
-        return addStudent(student, null);
-    }
-
-    /**
-     * Updates an existing student record in the database.
+     * Updates an existing student record in the database and synchronizes email in users table.
      */
     public static boolean updateStudent(Student student) throws SQLException {
         validateStudent(student, student.getStudentId());
@@ -143,45 +133,65 @@ public class StudentManagement {
                    + "phone_number = ?, department = ?, cgpa = ?, graduation_year = ?, "
                    + "skills = ?, backlog_count = ? WHERE student_id = ?";
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, student.getRollNumber().trim().toUpperCase());
-            stmt.setString(2, student.getFullName().trim());
-            stmt.setString(3, student.getEmail().trim());
-            stmt.setString(4, student.getPhoneNumber().trim());
-            stmt.setString(5, student.getDepartment().trim());
-            stmt.setDouble(6, student.getCgpa());
-            stmt.setInt(7, student.getGraduationYear());
-            stmt.setString(8, student.getSkills().trim());
-            stmt.setInt(9, student.getBacklogCount());
-            stmt.setInt(10, student.getStudentId());
-
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    /**
-     * Deletes a student record and their associated user login account.
-     */
-    public static boolean deleteStudent(int studentId) throws SQLException {
-        String deleteUserSql = "DELETE FROM users WHERE student_id = ?";
-        String deleteStudentSql = "DELETE FROM students WHERE student_id = ?";
+        String syncUserSql = "UPDATE users SET email = ?, username = ? WHERE student_id = ?";
 
         try (Connection conn = DBConnection.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                try (PreparedStatement stmt = conn.prepareStatement(deleteUserSql)) {
-                    stmt.setInt(1, studentId);
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setString(1, student.getRollNumber().trim().toUpperCase());
+                    stmt.setString(2, student.getFullName().trim());
+                    stmt.setString(3, student.getEmail().trim());
+                    stmt.setString(4, student.getPhoneNumber().trim());
+                    stmt.setString(5, student.getDepartment().trim());
+                    stmt.setDouble(6, student.getCgpa());
+                    stmt.setInt(7, student.getGraduationYear());
+                    stmt.setString(8, student.getSkills().trim());
+                    stmt.setInt(9, student.getBacklogCount());
+                    stmt.setInt(10, student.getStudentId());
                     stmt.executeUpdate();
                 }
-                boolean deleted;
-                try (PreparedStatement stmt = conn.prepareStatement(deleteStudentSql)) {
-                    stmt.setInt(1, studentId);
-                    deleted = stmt.executeUpdate() > 0;
+
+                // Keep users login record synchronized
+                try (PreparedStatement uStmt = conn.prepareStatement(syncUserSql)) {
+                    uStmt.setString(1, student.getEmail().trim().toLowerCase());
+                    uStmt.setString(2, student.getRollNumber().trim().toLowerCase());
+                    uStmt.setInt(3, student.getStudentId());
+                    uStmt.executeUpdate();
                 }
+
                 conn.commit();
-                return deleted;
+                return true;
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+
+    /**
+     * Deletes a student record and their login user account.
+     */
+    public static boolean deleteStudent(int studentId) throws SQLException {
+        try (Connection conn = DBConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // Delete user login account linked to this student
+                try (PreparedStatement uStmt = conn.prepareStatement("DELETE FROM users WHERE student_id = ?")) {
+                    uStmt.setInt(1, studentId);
+                    uStmt.executeUpdate();
+                }
+
+                // Delete student record
+                try (PreparedStatement sStmt = conn.prepareStatement("DELETE FROM students WHERE student_id = ?")) {
+                    sStmt.setInt(1, studentId);
+                    sStmt.executeUpdate();
+                }
+
+                conn.commit();
+                return true;
             } catch (Exception ex) {
                 conn.rollback();
                 throw ex;
