@@ -225,35 +225,60 @@ public class CompanyScreen {
         grid.add(new Label("HR Contact Email:"), 0, 5);
         grid.add(emailField, 1, 5);
 
+        Label errorMsg = new Label();
+        errorMsg.setStyle("-fx-text-fill: #dc2626; -fx-font-weight: bold; -fx-font-size: 12px;");
+        errorMsg.setWrapText(true);
+        errorMsg.setVisible(false);
+        grid.add(errorMsg, 0, 6, 2, 1);
+
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(javafx.scene.control.ButtonType.OK, javafx.scene.control.ButtonType.CANCEL);
 
-        dialog.setResultConverter(btnType -> {
-            if (btnType == javafx.scene.control.ButtonType.OK) {
-                try {
-                    Company c = isEdit ? companyToEdit : new Company();
-                    c.setCompanyName(nameField.getText());
-                    c.setIndustry(indField.getText());
-                    c.setLocation(locField.getText());
-                    c.setWebsite(webField.getText());
-                    c.setHrContact(hrField.getText());
-                    c.setEmail(emailField.getText());
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(javafx.scene.control.ButtonType.OK);
+        okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            errorMsg.setVisible(false);
+            String email = emailField.getText();
 
-                    if (isEdit) {
-                        return CompanyManagement.updateCompany(c);
-                    } else {
-                        return CompanyManagement.addCompany(c);
-                    }
-                } catch (Exception ex) {
-                    AlertUtil.showError("Save Error", ex.getMessage());
-                    return false;
-                }
+            // Validate Email format
+            if (!com.campusplacement.utils.ValidationUtil.isValidEmail(email)) {
+                errorMsg.setText("Invalid email format! Please enter a valid email address (e.g. contact@company.com).");
+                errorMsg.setVisible(true);
+                emailField.setStyle("-fx-border-color: #dc2626; -fx-border-width: 1.5px;");
+                AlertUtil.showError("Invalid Email Format", "The email address is not in a valid format!\nExample of valid format: name@company.com\n\nPlease correct it to continue.");
+                emailField.requestFocus();
+                event.consume(); // PREVENTS DIALOG FROM CLOSING!
+                return;
+            } else {
+                emailField.setStyle("");
             }
-            return null;
+
+            try {
+                Company c = isEdit ? companyToEdit : new Company();
+                c.setCompanyName(nameField.getText());
+                c.setIndustry(indField.getText());
+                c.setLocation(locField.getText());
+                c.setWebsite(webField.getText());
+                c.setHrContact(hrField.getText());
+                c.setEmail(emailField.getText());
+
+                boolean ok = isEdit ? CompanyManagement.updateCompany(c) : CompanyManagement.addCompany(c);
+                if (!ok) {
+                    errorMsg.setText("Could not save company record to database.");
+                    errorMsg.setVisible(true);
+                    event.consume();
+                }
+            } catch (Exception ex) {
+                errorMsg.setText("Error: " + ex.getMessage());
+                errorMsg.setVisible(true);
+                AlertUtil.showError("Validation Error", ex.getMessage());
+                event.consume(); // KEEP DIALOG OPEN!
+            }
         });
 
-        dialog.showAndWait().ifPresent(success -> {
-            if (Boolean.TRUE.equals(success)) {
+        dialog.setResultConverter(btnType -> btnType == javafx.scene.control.ButtonType.OK);
+
+        dialog.showAndWait().ifPresent(confirmed -> {
+            if (Boolean.TRUE.equals(confirmed)) {
                 AlertUtil.showInfo("Success", isEdit ? "Company profile updated." : "New company registered.");
                 loadCompanies();
             }

@@ -216,36 +216,40 @@ public class ApplicationScreen {
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(javafx.scene.control.ButtonType.OK, javafx.scene.control.ButtonType.CANCEL);
 
-        dialog.setResultConverter(btnType -> {
-            if (btnType == javafx.scene.control.ButtonType.OK) {
-                try {
-                    String nStatus = newStatusBox.getValue();
-                    String dtStr = null;
-                    if ("Interview Scheduled".equalsIgnoreCase(nStatus)) {
-                        LocalDate d = interviewDatePicker.getValue();
-                        dtStr = (d != null ? d.toString() : LocalDate.now().toString()) + " " + timeField.getText().trim();
-                    }
-                    String comments = commentsField.getText();
-                    LoginManagement.UserSession user = LoginManagement.getCurrentUser();
-                    String officer = (user != null ? user.getUsername() : "Placement Officer");
-
-                    return ApplicationManagement.updateApplicationStatus(
-                            app.getApplicationId(),
-                            nStatus,
-                            dtStr,
-                            comments,
-                            officer
-                    );
-                } catch (Exception ex) {
-                    AlertUtil.showError("Update Error", ex.getMessage());
-                    return false;
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(javafx.scene.control.ButtonType.OK);
+        okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            try {
+                String nStatus = newStatusBox.getValue();
+                String dtStr = null;
+                if ("Interview Scheduled".equalsIgnoreCase(nStatus)) {
+                    LocalDate d = interviewDatePicker.getValue();
+                    dtStr = (d != null ? d.toString() : LocalDate.now().toString()) + " " + timeField.getText().trim();
                 }
+                String comments = commentsField.getText();
+                LoginManagement.UserSession user = LoginManagement.getCurrentUser();
+                String officer = (user != null ? user.getUsername() : "Placement Officer");
+
+                boolean ok = ApplicationManagement.updateApplicationStatus(
+                        app.getApplicationId(),
+                        nStatus,
+                        dtStr,
+                        comments,
+                        officer
+                );
+                if (!ok) {
+                    AlertUtil.showError("Update Error", "Could not update application status.");
+                    event.consume();
+                }
+            } catch (Exception ex) {
+                AlertUtil.showError("Update Error", ex.getMessage());
+                event.consume(); // KEEP DIALOG OPEN!
             }
-            return null;
         });
 
-        dialog.showAndWait().ifPresent(success -> {
-            if (Boolean.TRUE.equals(success)) {
+        dialog.setResultConverter(btnType -> btnType == javafx.scene.control.ButtonType.OK);
+
+        dialog.showAndWait().ifPresent(confirmed -> {
+            if (Boolean.TRUE.equals(confirmed)) {
                 AlertUtil.showInfo("Status Updated", "Application status updated and student notified.");
                 loadApplications();
             }

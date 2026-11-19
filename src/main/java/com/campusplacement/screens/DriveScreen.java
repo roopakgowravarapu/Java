@@ -323,51 +323,69 @@ public class DriveScreen {
         grid.add(new Label("Drive Status:"), 0, 9);
         grid.add(statusBox, 1, 9);
 
+        Label errorMsg = new Label();
+        errorMsg.setStyle("-fx-text-fill: #dc2626; -fx-font-weight: bold; -fx-font-size: 12px;");
+        errorMsg.setWrapText(true);
+        errorMsg.setVisible(false);
+        grid.add(errorMsg, 0, 10, 2, 1);
+
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(javafx.scene.control.ButtonType.OK, javafx.scene.control.ButtonType.CANCEL);
 
-        dialog.setResultConverter(btnType -> {
-            if (btnType == javafx.scene.control.ButtonType.OK) {
-                try {
-                    Company selComp = companyBox.getValue();
-                    if (selComp == null) throw new IllegalArgumentException("Please select a recruiting company.");
-
-                    double pkg = Double.parseDouble(pkgField.getText().trim());
-                    double cgpa = Double.parseDouble(cgpaField.getText().trim());
-                    int backlogs = Integer.parseInt(backlogsField.getText().trim());
-                    LocalDate dDate = deadlinePicker.getValue();
-                    String deadlineStr = (dDate != null ? dDate.toString() : LocalDate.now().plusDays(7).toString()) + " 23:59:00";
-
-                    PlacementDrive d = isEdit ? driveToEdit : new PlacementDrive();
-                    d.setCompanyId(selComp.getCompanyId());
-                    d.setJobRole(roleField.getText());
-                    d.setJobDescription(descArea.getText());
-                    d.setPackageLpa(pkg);
-                    d.setMinCgpa(cgpa);
-                    d.setEligibleDepartments(deptsField.getText());
-                    d.setMaxBacklogs(backlogs);
-                    d.setRequiredSkills(skillsField.getText());
-                    d.setApplicationDeadline(deadlineStr);
-                    d.setDriveStatus(statusBox.getValue());
-
-                    if (isEdit) {
-                        return DriveManagement.updateDrive(d);
-                    } else {
-                        return DriveManagement.addDrive(d);
-                    }
-                } catch (NumberFormatException nfe) {
-                    AlertUtil.showError("Invalid Number", "Package, CGPA, and Backlogs must be valid numeric values.");
-                    return false;
-                } catch (Exception ex) {
-                    AlertUtil.showError("Save Error", ex.getMessage());
-                    return false;
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(javafx.scene.control.ButtonType.OK);
+        okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            errorMsg.setVisible(false);
+            try {
+                Company selComp = companyBox.getValue();
+                if (selComp == null) {
+                    errorMsg.setText("Please select a recruiting company.");
+                    errorMsg.setVisible(true);
+                    AlertUtil.showError("Validation Error", "Please select a recruiting company.");
+                    event.consume();
+                    return;
                 }
+
+                double pkg = Double.parseDouble(pkgField.getText().trim());
+                double cgpa = Double.parseDouble(cgpaField.getText().trim());
+                int backlogs = Integer.parseInt(backlogsField.getText().trim());
+                LocalDate dDate = deadlinePicker.getValue();
+                String deadlineStr = (dDate != null ? dDate.toString() : LocalDate.now().plusDays(7).toString()) + " 23:59:00";
+
+                PlacementDrive d = isEdit ? driveToEdit : new PlacementDrive();
+                d.setCompanyId(selComp.getCompanyId());
+                d.setJobRole(roleField.getText());
+                d.setJobDescription(descArea.getText());
+                d.setPackageLpa(pkg);
+                d.setMinCgpa(cgpa);
+                d.setEligibleDepartments(deptsField.getText());
+                d.setMaxBacklogs(backlogs);
+                d.setRequiredSkills(skillsField.getText());
+                d.setApplicationDeadline(deadlineStr);
+                d.setDriveStatus(statusBox.getValue());
+
+                boolean ok = isEdit ? DriveManagement.updateDrive(d) : DriveManagement.addDrive(d);
+                if (!ok) {
+                    errorMsg.setText("Could not save placement drive to database.");
+                    errorMsg.setVisible(true);
+                    event.consume();
+                }
+            } catch (NumberFormatException nfe) {
+                errorMsg.setText("Package, CGPA, and Backlogs must be valid numeric values.");
+                errorMsg.setVisible(true);
+                AlertUtil.showError("Invalid Number", "Package, CGPA, and Backlogs must be valid numbers.");
+                event.consume(); // KEEP DIALOG OPEN!
+            } catch (Exception ex) {
+                errorMsg.setText("Error: " + ex.getMessage());
+                errorMsg.setVisible(true);
+                AlertUtil.showError("Save Error", ex.getMessage());
+                event.consume(); // KEEP DIALOG OPEN!
             }
-            return null;
         });
 
-        dialog.showAndWait().ifPresent(success -> {
-            if (Boolean.TRUE.equals(success)) {
+        dialog.setResultConverter(btnType -> btnType == javafx.scene.control.ButtonType.OK);
+
+        dialog.showAndWait().ifPresent(confirmed -> {
+            if (Boolean.TRUE.equals(confirmed)) {
                 AlertUtil.showInfo("Success", isEdit ? "Placement drive updated." : "New placement drive scheduled.");
                 loadDrives();
             }

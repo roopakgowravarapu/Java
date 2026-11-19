@@ -301,45 +301,71 @@ public class StudentScreen {
         grid.add(new Label("Backlogs:"), 0, 8);
         grid.add(backlogsField, 1, 8);
 
+        Label errorMsg = new Label();
+        errorMsg.setStyle("-fx-text-fill: #dc2626; -fx-font-weight: bold; -fx-font-size: 12px;");
+        errorMsg.setWrapText(true);
+        errorMsg.setVisible(false);
+        grid.add(errorMsg, 0, 9, 2, 1);
+
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(javafx.scene.control.ButtonType.OK, javafx.scene.control.ButtonType.CANCEL);
 
-        dialog.setResultConverter(btnType -> {
-            if (btnType == javafx.scene.control.ButtonType.OK) {
-                try {
-                    double cgpa = Double.parseDouble(cgpaField.getText().trim());
-                    int year = Integer.parseInt(yearField.getText().trim());
-                    int backlogs = Integer.parseInt(backlogsField.getText().trim());
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(javafx.scene.control.ButtonType.OK);
+        okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            errorMsg.setVisible(false);
 
-                    Student s = isEdit ? studentToEdit : new Student();
-                    s.setRollNumber(rollField.getText());
-                    s.setFullName(nameField.getText());
-                    s.setEmail(emailField.getText());
-                    s.setPhoneNumber(phoneField.getText());
-                    s.setDepartment(deptBox.getValue());
-                    s.setCgpa(cgpa);
-                    s.setGraduationYear(year);
-                    s.setSkills(skillsField.getText());
-                    s.setBacklogCount(backlogs);
-
-                    if (isEdit) {
-                        return StudentManagement.updateStudent(s);
-                    } else {
-                        return StudentManagement.addStudent(s);
-                    }
-                } catch (NumberFormatException nfe) {
-                    AlertUtil.showError("Input Format Error", "CGPA, Year, and Backlogs must be valid numeric values.");
-                    return false;
-                } catch (Exception ex) {
-                    AlertUtil.showError("Save Error", ex.getMessage());
-                    return false;
-                }
+            String email = emailField.getText();
+            if (!com.campusplacement.utils.ValidationUtil.isValidEmail(email)) {
+                errorMsg.setText("Invalid email format! Example of valid format: student@college.edu");
+                errorMsg.setVisible(true);
+                emailField.setStyle("-fx-border-color: #dc2626; -fx-border-width: 1.5px;");
+                AlertUtil.showError("Invalid Email Format", "The email address is invalid!\nPlease enter a valid email format (e.g. name@domain.com) to continue.");
+                emailField.requestFocus();
+                event.consume(); // PREVENTS DIALOG FROM CLOSING!
+                return;
+            } else {
+                emailField.setStyle("");
             }
-            return null;
+
+            try {
+                double cgpa = Double.parseDouble(cgpaField.getText().trim());
+                int year = Integer.parseInt(yearField.getText().trim());
+                int backlogs = Integer.parseInt(backlogsField.getText().trim());
+
+                Student s = isEdit ? studentToEdit : new Student();
+                s.setRollNumber(rollField.getText());
+                s.setFullName(nameField.getText());
+                s.setEmail(emailField.getText());
+                s.setPhoneNumber(phoneField.getText());
+                s.setDepartment(deptBox.getValue());
+                s.setCgpa(cgpa);
+                s.setGraduationYear(year);
+                s.setSkills(skillsField.getText());
+                s.setBacklogCount(backlogs);
+
+                boolean ok = isEdit ? StudentManagement.updateStudent(s) : StudentManagement.addStudent(s);
+                if (!ok) {
+                    errorMsg.setText("Could not save student record to database.");
+                    errorMsg.setVisible(true);
+                    event.consume();
+                }
+            } catch (NumberFormatException nfe) {
+                errorMsg.setText("CGPA, Year, and Backlogs must be valid numeric values.");
+                errorMsg.setVisible(true);
+                AlertUtil.showError("Input Format Error", "CGPA, Graduation Year, and Backlogs must be valid numbers.");
+                event.consume(); // PREVENTS DIALOG FROM CLOSING!
+            } catch (Exception ex) {
+                errorMsg.setText("Error: " + ex.getMessage());
+                errorMsg.setVisible(true);
+                AlertUtil.showError("Validation Error", ex.getMessage());
+                event.consume(); // PREVENTS DIALOG FROM CLOSING!
+            }
         });
 
-        dialog.showAndWait().ifPresent(success -> {
-            if (Boolean.TRUE.equals(success)) {
+        dialog.setResultConverter(btnType -> btnType == javafx.scene.control.ButtonType.OK);
+
+        dialog.showAndWait().ifPresent(confirmed -> {
+            if (Boolean.TRUE.equals(confirmed)) {
                 AlertUtil.showInfo("Success", isEdit ? "Student record updated." : "New student registered successfully.");
                 loadStudentsAsync();
             }
