@@ -55,6 +55,7 @@ public class SystemIntegrationTest {
         runTest("8. Multithreading (Scheduled Deadline Monitor)", SystemIntegrationTest::testDeadlineMonitor);
         runTest("9. CSV & PDF Report Generation", SystemIntegrationTest::testReportExports);
         runTest("10. Officer Add Student -> Auto User Login -> Student Apply -> Clean Delete", SystemIntegrationTest::testEndToEndOfficerStudentWorkflow);
+        runTest("11. Dashboard Accuracy & Cascading Deletion Verification", SystemIntegrationTest::testDashboardAccuracy);
 
         System.out.println("================================================================");
         System.out.printf("TEST SUMMARY: %d PASSED, %d FAILED\n", totalPassed, totalFailed);
@@ -382,6 +383,38 @@ public class SystemIntegrationTest {
 
         LoginManagement.UserSession afterDeleteSession = LoginManagement.authenticate(username, password);
         assertTrue(afterDeleteSession == null, "Deleted student account should not be able to log in");
+    }
+
+    // -------------------------------------------------------------
+    // TEST 11: Dashboard Accuracy & Cascading Deletion Verification
+    // -------------------------------------------------------------
+    private static void testDashboardAccuracy() throws Exception {
+        ReportManagement.DashboardStats initialStats = ReportManagement.getDashboardStatistics();
+        assertNotNull(initialStats, "Dashboard stats should not be null");
+
+        // Verify that when students are deleted, their applications are also deleted
+        String roll = "24DASH" + (System.currentTimeMillis() % 10000);
+        Student tempS = new Student(0, roll, "Dashboard Student", roll.toLowerCase() + "@col.edu", "9876543201",
+                "Computer Science", 9.5, 2026, "Java", 0);
+        StudentManagement.addStudent(tempS);
+        assertTrue(tempS.getStudentId() > 0, "Student ID should be valid");
+
+        // Student applies to drive 1
+        ApplicationManagement.applyForDrive(1, tempS.getStudentId(), "Dash test app");
+        List<PlacementApplication> apps = ApplicationManagement.getApplicationsByStudentId(tempS.getStudentId());
+        assertTrue(!apps.isEmpty(), "Application should exist");
+        int appId = apps.get(0).getApplicationId();
+
+        // Update status to Selected
+        ApplicationManagement.updateApplicationStatus(appId, "Selected", null, "Selected for dash test", "Officer");
+
+        // Now delete this student
+        boolean deleted = StudentManagement.deleteStudent(tempS.getStudentId());
+        assertTrue(deleted, "Student deletion should succeed");
+
+        // Verify that the application was also deleted (no orphaned rows)
+        List<PlacementApplication> appsAfter = ApplicationManagement.getApplicationsByStudentId(tempS.getStudentId());
+        assertTrue(appsAfter.isEmpty(), "Applications for deleted student must be completely removed");
     }
 
     // -------------------------------------------------------------

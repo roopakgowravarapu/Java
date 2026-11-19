@@ -74,6 +74,9 @@ public class DBConnection {
                 Class.forName("org.sqlite.JDBC");
                 String sqliteUrl = "jdbc:sqlite:campus_placement.db";
                 Connection conn = DriverManager.getConnection(sqliteUrl);
+                try (Statement pragmaStmt = conn.createStatement()) {
+                    pragmaStmt.execute("PRAGMA foreign_keys = ON;");
+                }
                 usingMySQL = false;
                 activeDbType = "SQLite (Local Offline Fallback)";
                 return conn;

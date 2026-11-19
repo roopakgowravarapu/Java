@@ -112,14 +112,49 @@ public class CompanyManagement {
     }
 
     /**
-     * Deletes a company record by ID.
+     * Deletes a company record by ID and cascades through its drives and applications.
      */
     public static boolean deleteCompany(int companyId) throws SQLException {
-        String sql = "DELETE FROM companies WHERE company_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, companyId);
-            return stmt.executeUpdate() > 0;
+        try (Connection conn = DBConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // 1. Delete application history for applications of this company's drives
+                try (PreparedStatement ahStmt = conn.prepareStatement(
+                        "DELETE FROM application_history WHERE application_id IN ("
+                        + "SELECT a.application_id FROM applications a "
+                        + "JOIN placement_drives d ON a.drive_id = d.drive_id WHERE d.company_id = ?)")) {
+                    ahStmt.setInt(1, companyId);
+                    ahStmt.executeUpdate();
+                }
+
+                // 2. Delete applications for drives of this company
+                try (PreparedStatement aStmt = conn.prepareStatement(
+                        "DELETE FROM applications WHERE drive_id IN (SELECT drive_id FROM placement_drives WHERE company_id = ?)")) {
+                    aStmt.setInt(1, companyId);
+                    aStmt.executeUpdate();
+                }
+
+                // 3. Delete drives of this company
+                try (PreparedStatement dStmt = conn.prepareStatement("DELETE FROM placement_drives WHERE company_id = ?")) {
+                    dStmt.setInt(1, companyId);
+                    dStmt.executeUpdate();
+                }
+
+                // 4. Delete the company record
+                int affected;
+                try (PreparedStatement cStmt = conn.prepareStatement("DELETE FROM companies WHERE company_id = ?")) {
+                    cStmt.setInt(1, companyId);
+                    affected = cStmt.executeUpdate();
+                }
+
+                conn.commit();
+                return affected > 0;
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
+            }
         }
     }
 

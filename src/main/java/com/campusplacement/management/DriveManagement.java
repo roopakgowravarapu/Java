@@ -161,14 +161,40 @@ public class DriveManagement {
     }
 
     /**
-     * Deletes a drive by ID.
+     * Deletes a drive by ID and cascades through its applications.
      */
     public static boolean deleteDrive(int driveId) throws SQLException {
-        String sql = "DELETE FROM placement_drives WHERE drive_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, driveId);
-            return stmt.executeUpdate() > 0;
+        try (Connection conn = DBConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // 1. Delete application history for applications of this drive
+                try (PreparedStatement ahStmt = conn.prepareStatement(
+                        "DELETE FROM application_history WHERE application_id IN (SELECT application_id FROM applications WHERE drive_id = ?)")) {
+                    ahStmt.setInt(1, driveId);
+                    ahStmt.executeUpdate();
+                }
+
+                // 2. Delete applications for this drive
+                try (PreparedStatement aStmt = conn.prepareStatement("DELETE FROM applications WHERE drive_id = ?")) {
+                    aStmt.setInt(1, driveId);
+                    aStmt.executeUpdate();
+                }
+
+                // 3. Delete the drive
+                int affected;
+                try (PreparedStatement dStmt = conn.prepareStatement("DELETE FROM placement_drives WHERE drive_id = ?")) {
+                    dStmt.setInt(1, driveId);
+                    affected = dStmt.executeUpdate();
+                }
+
+                conn.commit();
+                return affected > 0;
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
+            }
         }
     }
 

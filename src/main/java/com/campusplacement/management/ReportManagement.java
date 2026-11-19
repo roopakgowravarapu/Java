@@ -91,35 +91,32 @@ public class ReportManagement {
             // 7. Placement Percentage
             if (stats.totalStudents > 0) {
                 // Distinct students placed
-                int placedStudents = stats.totalSelected;
+                int placedStudents = 0;
                 try (ResultSet rs = stmt.executeQuery("SELECT COUNT(DISTINCT student_id) FROM applications WHERE status = 'Selected'")) {
                     if (rs.next()) placedStudents = rs.getInt(1);
                 }
                 stats.placementPercentage = ((double) placedStudents / stats.totalStudents) * 100.0;
+            } else {
+                stats.placementPercentage = 0.0;
             }
 
-            // 8. Highest and Average package of selected candidates
-            String pkgSql = "SELECT COALESCE(AVG(d.package_lpa), 0.0) as avg_pkg, "
-                          + "COALESCE(MAX(d.package_lpa), 0.0) as max_pkg "
-                          + "FROM applications a "
-                          + "JOIN placement_drives d ON a.drive_id = d.drive_id "
-                          + "WHERE a.status = 'Selected'";
+            // 8. Highest and Average package of placed candidates
+            if (stats.totalSelected > 0) {
+                String pkgSql = "SELECT COALESCE(AVG(d.package_lpa), 0.0) as avg_pkg, "
+                              + "COALESCE(MAX(d.package_lpa), 0.0) as max_pkg "
+                              + "FROM applications a "
+                              + "JOIN placement_drives d ON a.drive_id = d.drive_id "
+                              + "WHERE a.status = 'Selected'";
 
-            try (ResultSet rs = stmt.executeQuery(pkgSql)) {
-                if (rs.next()) {
-                    stats.averagePackage = rs.getDouble("avg_pkg");
-                    stats.highestPackage = rs.getDouble("max_pkg");
-                }
-            }
-
-            // If no selected candidate yet, fallback to available drives for metrics
-            if (stats.highestPackage == 0.0) {
-                try (ResultSet rs = stmt.executeQuery("SELECT COALESCE(AVG(package_lpa), 0.0), COALESCE(MAX(package_lpa), 0.0) FROM placement_drives")) {
+                try (ResultSet rs = stmt.executeQuery(pkgSql)) {
                     if (rs.next()) {
-                        stats.averagePackage = rs.getDouble(1);
-                        stats.highestPackage = rs.getDouble(2);
+                        stats.averagePackage = rs.getDouble("avg_pkg");
+                        stats.highestPackage = rs.getDouble("max_pkg");
                     }
                 }
+            } else {
+                stats.averagePackage = 0.0;
+                stats.highestPackage = 0.0;
             }
         }
         return stats;
@@ -190,10 +187,9 @@ public class ReportManagement {
      */
     public static Map<String, Double> getPackageComparison() throws SQLException {
         Map<String, Double> map = new LinkedHashMap<>();
-        String sql = "SELECT c.company_name || ' - ' || d.job_role as label, d.package_lpa "
-                   + "FROM placement_drives d "
-                   + "JOIN companies c ON d.company_id = c.company_id "
-                   + "ORDER BY d.package_lpa DESC LIMIT 5";
+        String sql = DBConnection.isUsingMySQL()
+                ? "SELECT CONCAT(c.company_name, ' - ', d.job_role) as label, d.package_lpa FROM placement_drives d JOIN companies c ON d.company_id = c.company_id ORDER BY d.package_lpa DESC LIMIT 5"
+                : "SELECT c.company_name || ' - ' || d.job_role as label, d.package_lpa FROM placement_drives d JOIN companies c ON d.company_id = c.company_id ORDER BY d.package_lpa DESC LIMIT 5";
 
         try (Connection conn = DBConnection.getConnection();
              Statement stmt = conn.createStatement();

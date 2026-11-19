@@ -172,19 +172,32 @@ public class StudentManagement {
     }
 
     /**
-     * Deletes a student record and their login user account.
+     * Deletes a student record and their login user account and all applications.
      */
     public static boolean deleteStudent(int studentId) throws SQLException {
         try (Connection conn = DBConnection.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                // Delete user login account linked to this student
+                // 1. Delete application history linked to this student's applications
+                try (PreparedStatement ahStmt = conn.prepareStatement(
+                        "DELETE FROM application_history WHERE application_id IN (SELECT application_id FROM applications WHERE student_id = ?)")) {
+                    ahStmt.setInt(1, studentId);
+                    ahStmt.executeUpdate();
+                }
+
+                // 2. Delete applications for this student
+                try (PreparedStatement aStmt = conn.prepareStatement("DELETE FROM applications WHERE student_id = ?")) {
+                    aStmt.setInt(1, studentId);
+                    aStmt.executeUpdate();
+                }
+
+                // 3. Delete user login account linked to this student
                 try (PreparedStatement uStmt = conn.prepareStatement("DELETE FROM users WHERE student_id = ?")) {
                     uStmt.setInt(1, studentId);
                     uStmt.executeUpdate();
                 }
 
-                // Delete student record
+                // 4. Delete student record
                 try (PreparedStatement sStmt = conn.prepareStatement("DELETE FROM students WHERE student_id = ?")) {
                     sStmt.setInt(1, studentId);
                     sStmt.executeUpdate();
