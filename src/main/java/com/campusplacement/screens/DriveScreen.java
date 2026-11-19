@@ -21,6 +21,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
@@ -31,6 +32,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -268,8 +270,28 @@ public class DriveScreen {
         TextField cgpaField = new TextField("6.50");
         cgpaField.setPromptText("Minimum required CGPA");
 
-        TextField deptsField = new TextField("Computer Science,Information Tech");
-        deptsField.setPromptText("Comma-separated eligible departments");
+        // Department CheckBoxes (Allows selecting two, three or all departments easily)
+        CheckBox cbCS = new CheckBox("Computer Science");
+        CheckBox cbIT = new CheckBox("Information Tech");
+        CheckBox cbEC = new CheckBox("Electronics & Comm");
+        CheckBox cbEE = new CheckBox("Electrical Eng");
+        CheckBox cbME = new CheckBox("Mechanical Eng");
+
+        if (isEdit && driveToEdit != null) {
+            String existing = driveToEdit.getEligibleDepartments() != null ? driveToEdit.getEligibleDepartments() : "";
+            cbCS.setSelected(existing.contains("Computer Science"));
+            cbIT.setSelected(existing.contains("Information Tech"));
+            cbEC.setSelected(existing.contains("Electronics & Comm"));
+            cbEE.setSelected(existing.contains("Electrical Eng"));
+            cbME.setSelected(existing.contains("Mechanical Eng"));
+        } else {
+            cbCS.setSelected(true);
+            cbIT.setSelected(true);
+        }
+
+        FlowPane deptPane = new FlowPane(12, 8);
+        deptPane.setPrefWrapLength(340);
+        deptPane.getChildren().addAll(cbCS, cbIT, cbEC, cbEE, cbME);
 
         TextField backlogsField = new TextField("0");
 
@@ -293,7 +315,6 @@ public class DriveScreen {
             descArea.setText(driveToEdit.getJobDescription());
             pkgField.setText(String.valueOf(driveToEdit.getPackageLpa()));
             cgpaField.setText(String.valueOf(driveToEdit.getMinCgpa()));
-            deptsField.setText(driveToEdit.getEligibleDepartments());
             backlogsField.setText(String.valueOf(driveToEdit.getMaxBacklogs()));
             skillsField.setText(driveToEdit.getRequiredSkills());
             statusBox.setValue(driveToEdit.getDriveStatus());
@@ -313,7 +334,7 @@ public class DriveScreen {
         grid.add(new Label("Minimum CGPA:"), 0, 4);
         grid.add(cgpaField, 1, 4);
         grid.add(new Label("Eligible Departments:"), 0, 5);
-        grid.add(deptsField, 1, 5);
+        grid.add(deptPane, 1, 5);
         grid.add(new Label("Max Backlogs Allowed:"), 0, 6);
         grid.add(backlogsField, 1, 6);
         grid.add(new Label("Required Skills:"), 0, 7);
@@ -351,13 +372,29 @@ public class DriveScreen {
                 LocalDate dDate = deadlinePicker.getValue();
                 String deadlineStr = (dDate != null ? dDate.toString() : LocalDate.now().plusDays(7).toString()) + " 23:59:00";
 
+                List<String> chosenDepts = new ArrayList<>();
+                if (cbCS.isSelected()) chosenDepts.add("Computer Science");
+                if (cbIT.isSelected()) chosenDepts.add("Information Tech");
+                if (cbEC.isSelected()) chosenDepts.add("Electronics & Comm");
+                if (cbEE.isSelected()) chosenDepts.add("Electrical Eng");
+                if (cbME.isSelected()) chosenDepts.add("Mechanical Eng");
+
+                if (chosenDepts.isEmpty()) {
+                    errorMsg.setText("Please select at least one eligible department (e.g. check 2 or 3 departments).");
+                    errorMsg.setVisible(true);
+                    AlertUtil.showError("Validation Error", "Please select at least one eligible department (e.g. check 2 or 3 departments).");
+                    event.consume();
+                    return;
+                }
+                String depts = String.join(",", chosenDepts);
+
                 PlacementDrive d = isEdit ? driveToEdit : new PlacementDrive();
                 d.setCompanyId(selComp.getCompanyId());
                 d.setJobRole(roleField.getText());
                 d.setJobDescription(descArea.getText());
                 d.setPackageLpa(pkg);
                 d.setMinCgpa(cgpa);
-                d.setEligibleDepartments(deptsField.getText());
+                d.setEligibleDepartments(depts);
                 d.setMaxBacklogs(backlogs);
                 d.setRequiredSkills(skillsField.getText());
                 d.setApplicationDeadline(deadlineStr);
