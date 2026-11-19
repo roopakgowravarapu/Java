@@ -250,26 +250,23 @@ public class DBConnection {
                 + "(4, 4, 'System Engineer', 'Global client enterprise solutions, data engineering and automation.', 6.50, 6.50, 'Computer Science,Information Tech,Electronics & Comm,Electrical Eng,Mechanical Eng', 1, 'Java, C, SQL', '" + d4 + "', 'OPEN'), "
                 + "(5, 5, 'Cloud Support Associate', 'Cloud diagnostics, Linux system management, networking and infrastructure automation.', 14.00, 7.50, 'Computer Science,Information Tech,Electronics & Comm', 0, 'Linux, Networking, Python, AWS', '" + d5 + "', 'CLOSED')");
 
-        // Applications
+        // Applications (Student 1 'student' has zero initial applications so user can test applying cleanly)
         stmt.executeUpdate("INSERT INTO applications (application_id, drive_id, student_id, status, remarks) VALUES "
-                + "(1, 1, 1, 'Shortlisted', 'Excellent performance in technical coding test'), "
-                + "(2, 2, 1, 'Applied', 'Application submitted awaiting document verification'), "
-                + "(3, 1, 2, 'Selected', 'Cleared technical & HR rounds with distinction. Offer released: 24.5 LPA'), "
-                + "(4, 2, 2, 'Interview Scheduled', 'Scheduled for round 2 virtual interview'), "
-                + "(5, 3, 3, 'Under Review', 'Verification of core electronic modules'), "
-                + "(6, 4, 3, 'Applied', 'Standard application submitted'), "
-                + "(7, 3, 5, 'Selected', 'Selected for CAD/Automation division. Offer released: 9.0 LPA'), "
-                + "(8, 4, 7, 'Rejected', 'Does not meet minimum CGPA requirement (6.85 vs 7.00 cutoff)')");
+                + "(1, 1, 2, 'Selected', 'Cleared technical & HR rounds with distinction. Offer released: 24.5 LPA'), "
+                + "(2, 2, 2, 'Interview Scheduled', 'Scheduled for round 2 virtual interview'), "
+                + "(3, 3, 3, 'Under Review', 'Verification of core electronic modules'), "
+                + "(4, 4, 3, 'Applied', 'Standard application submitted'), "
+                + "(5, 3, 5, 'Selected', 'Selected for CAD/Automation division. Offer released: 9.0 LPA'), "
+                + "(6, 4, 7, 'Rejected', 'Does not meet minimum CGPA requirement (6.85 vs 7.00 cutoff)')");
 
         // Application History
         stmt.executeUpdate("INSERT INTO application_history (history_id, application_id, old_status, new_status, updated_by, comments) VALUES "
-                + "(1, 1, 'Applied', 'Under Review', 'officer', 'Resume verified'), "
-                + "(2, 1, 'Under Review', 'Shortlisted', 'officer', 'Shortlisted after coding round'), "
-                + "(3, 3, 'Applied', 'Shortlisted', 'officer', 'Round 1 cleared'), "
-                + "(4, 3, 'Shortlisted', 'Interview Scheduled', 'officer', 'Final panel interview'), "
-                + "(5, 3, 'Interview Scheduled', 'Selected', 'officer', 'Candidate cleared all rounds with top score'), "
-                + "(6, 7, 'Applied', 'Selected', 'officer', 'Direct campus placement offer'), "
-                + "(7, 8, 'Applied', 'Rejected', 'officer', 'Eligibility criteria not met')");
+                + "(1, 1, 'Applied', 'Shortlisted', 'officer', 'Round 1 cleared'), "
+                + "(2, 1, 'Shortlisted', 'Interview Scheduled', 'officer', 'Final panel interview'), "
+                + "(3, 1, 'Interview Scheduled', 'Selected', 'officer', 'Candidate cleared all rounds with top score'), "
+                + "(4, 2, 'Applied', 'Interview Scheduled', 'officer', 'Scheduled for virtual round 2 interview'), "
+                + "(5, 5, 'Applied', 'Selected', 'officer', 'Direct campus placement offer'), "
+                + "(6, 6, 'Applied', 'Rejected', 'officer', 'Eligibility criteria not met')");
     }
 
     public static boolean isUsingMySQL() {

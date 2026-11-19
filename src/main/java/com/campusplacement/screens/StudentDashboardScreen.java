@@ -9,7 +9,9 @@ import com.campusplacement.model.PlacementApplication;
 import com.campusplacement.model.PlacementDrive;
 import com.campusplacement.model.Student;
 import com.campusplacement.utils.AlertUtil;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -21,6 +23,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -39,9 +42,13 @@ public class StudentDashboardScreen {
 
     private static TableView<PlacementDrive> drivesTable;
     private static ObservableList<PlacementDrive> drivesList = FXCollections.observableArrayList();
+    private static Map<Integer, String> studentAppMap = new HashMap<>();
 
     private static TableView<PlacementApplication> myAppsTable;
     private static ObservableList<PlacementApplication> myAppsList = FXCollections.observableArrayList();
+
+    private static TabPane tabPane;
+    private static Tab appsTab;
 
     public static Parent createContent() {
         BorderPane root = new BorderPane();
@@ -82,7 +89,7 @@ public class StudentDashboardScreen {
         }
 
         // TabPane for Student Functions
-        TabPane tabPane = new TabPane();
+        tabPane = new TabPane();
         tabPane.setStyle("-fx-padding: 10px;");
 
         // TAB 1: Profile & Academic Summary
@@ -94,7 +101,7 @@ public class StudentDashboardScreen {
         drivesTab.setClosable(false);
 
         // TAB 3: My Applications & Status
-        Tab appsTab = new Tab("My Applied Drives", createAppTrackerView(currentStudent));
+        appsTab = new Tab("My Applied Drives", createAppTrackerView(currentStudent));
         appsTab.setClosable(false);
 
         tabPane.getTabs().addAll(profileTab, drivesTab, appsTab);
@@ -196,16 +203,46 @@ public class StudentDashboardScreen {
 
         TableColumn<PlacementDrive, String> skillsCol = new TableColumn<>("Required Skills");
         skillsCol.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getRequiredSkills()));
-        skillsCol.setPrefWidth(180);
+        skillsCol.setPrefWidth(170);
 
         TableColumn<PlacementDrive, String> deadlineCol = new TableColumn<>("Deadline");
         deadlineCol.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getApplicationDeadline()));
-        deadlineCol.setPrefWidth(150);
+        deadlineCol.setPrefWidth(140);
 
-        drivesTable.getColumns().addAll(compCol, roleCol, pkgCol, cgpaCol, deptCol, backlogsCol, skillsCol, deadlineCol);
+        // Application Status Column for the Current Student
+        TableColumn<PlacementDrive, String> myStatusCol = new TableColumn<>("Application Status");
+        myStatusCol.setCellValueFactory(d -> {
+            int driveId = d.getValue().getDriveId();
+            String status = studentAppMap.get(driveId);
+            if (status != null) {
+                return new SimpleStringProperty("Applied (" + status + ")");
+            } else {
+                return new SimpleStringProperty("Not Applied");
+            }
+        });
+        myStatusCol.setCellFactory(col -> new TableCell<PlacementDrive, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if (item.startsWith("Applied")) {
+                        setStyle("-fx-text-fill: #16a34a; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #64748b; -fx-font-weight: normal;");
+                    }
+                }
+            }
+        });
+        myStatusCol.setPrefWidth(140);
+
+        drivesTable.getColumns().addAll(compCol, roleCol, pkgCol, cgpaCol, deptCol, backlogsCol, skillsCol, deadlineCol, myStatusCol);
 
         // Events
-        refreshBtn.setOnAction(e -> loadStudentDrives());
+        refreshBtn.setOnAction(e -> loadStudentDrives(student));
 
         checkEligBtn.setOnAction(e -> {
             PlacementDrive selected = drivesTable.getSelectionModel().getSelectedItem();
@@ -218,6 +255,9 @@ public class StudentDashboardScreen {
                 return;
             }
             DriveManagement.EligibilityResult result = DriveManagement.checkEligibility(student, selected);
+            String appStatus = studentAppMap.get(selected.getDriveId());
+            String appInfo = (appStatus != null) ? "\n\nApplication Status: ALREADY APPLIED (" + appStatus + ")" : "\n\nApplication Status: NOT YET APPLIED";
+
             if (result.isEligible()) {
                 AlertUtil.showInfo(
                         "Eligibility Status: ELIGIBLE",
@@ -225,11 +265,13 @@ public class StudentDashboardScreen {
                                 + "- Your CGPA: " + student.getCgpa() + " (Min: " + selected.getMinCgpa() + ")\n"
                                 + "- Your Dept: " + student.getDepartment() + "\n"
                                 + "- Your Backlogs: " + student.getBacklogCount() + " (Max: " + selected.getMaxBacklogs() + ")"
+                                + appInfo
                 );
             } else {
                 AlertUtil.showWarning(
                         "Eligibility Status: NOT ELIGIBLE",
-                        "You are currently ineligible for this drive:\n\n" + String.join("\n- ", result.getReasons())
+                        "You are currently ineligible for this drive:\n\n- " + String.join("\n- ", result.getReasons())
+                                + appInfo
                 );
             }
         });
@@ -245,6 +287,30 @@ public class StudentDashboardScreen {
                 return;
             }
 
+            // 1. Check if already applied
+            if (studentAppMap.containsKey(selected.getDriveId())) {
+                String curStatus = studentAppMap.get(selected.getDriveId());
+                AlertUtil.showInfo(
+                        "Already Applied",
+                        "You have already applied for " + selected.getJobRole() + " at " + selected.getCompanyName() + ".\n\n"
+                                + "Current Recruitment Status: " + curStatus + "\n\n"
+                                + "You can track stage updates, interview timings, and officer notes in the 'My Applied Drives' tab."
+                );
+                return;
+            }
+
+            // 2. Check eligibility before applying
+            DriveManagement.EligibilityResult eligibility = DriveManagement.checkEligibility(student, selected);
+            if (!eligibility.isEligible()) {
+                AlertUtil.showWarning(
+                        "Ineligible to Apply",
+                        "You do not meet the minimum eligibility criteria for " + selected.getJobRole() + " at " + selected.getCompanyName() + ":\n\n- "
+                                + String.join("\n- ", eligibility.getReasons())
+                );
+                return;
+            }
+
+            // 3. Confirm submission
             boolean confirm = AlertUtil.showConfirmation(
                     "Confirm Application Submission",
                     "Do you want to apply for " + selected.getJobRole() + " at " + selected.getCompanyName() + " (Package: " + selected.getPackageLpa() + " LPA)?"
@@ -254,8 +320,20 @@ public class StudentDashboardScreen {
                 try {
                     boolean success = ApplicationManagement.applyForDrive(selected.getDriveId(), student.getStudentId(), "Applied via Student Portal");
                     if (success) {
-                        AlertUtil.showInfo("Application Submitted", "Your application has been successfully submitted! Check the 'My Applied Drives' tab to track status.");
+                        studentAppMap.put(selected.getDriveId(), "Applied");
+                        drivesTable.refresh();
                         loadStudentApps(student);
+
+                        AlertUtil.showInfo(
+                                "Application Submitted Successfully",
+                                "Applied successfully!\n\n"
+                                        + "Your application for " + selected.getJobRole() + " at " + selected.getCompanyName() + " has been submitted.\n\n"
+                                        + "Switching to 'My Applied Drives' tab to review your submission."
+                        );
+
+                        if (tabPane != null && appsTab != null) {
+                            tabPane.getSelectionModel().select(appsTab);
+                        }
                     }
                 } catch (Exception ex) {
                     AlertUtil.showError("Application Error", ex.getMessage());
@@ -264,16 +342,26 @@ public class StudentDashboardScreen {
         });
 
         box.getChildren().addAll(title, actions, drivesTable);
-        loadStudentDrives();
+        loadStudentDrives(student);
 
         return box;
     }
 
-    private static void loadStudentDrives() {
+    private static void loadStudentDrives(Student student) {
         try {
+            studentAppMap.clear();
+            if (student != null) {
+                List<PlacementApplication> studentApps = ApplicationManagement.getApplicationsByStudentId(student.getStudentId());
+                for (PlacementApplication a : studentApps) {
+                    studentAppMap.put(a.getDriveId(), a.getStatus());
+                }
+            }
             List<PlacementDrive> list = DriveManagement.getAllDrives();
             list.removeIf(d -> !"OPEN".equalsIgnoreCase(d.getDriveStatus()));
             drivesList.setAll(list);
+            if (drivesTable != null) {
+                drivesTable.refresh();
+            }
         } catch (Exception e) {
             System.err.println("Error loading drives for student: " + e.getMessage());
         }

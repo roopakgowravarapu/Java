@@ -12,4 +12,4 @@ javac -cp "%JARS%;src\main\resources" -d target\classes src\main\java\com\campus
 xcopy /E /I /Y src\main\resources\* target\classes\
 
 echo Compilation completed successfully!
-pause
+if "%1" neq "nopause" pause

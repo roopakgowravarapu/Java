@@ -54,6 +54,7 @@ public class SystemIntegrationTest {
         runTest("7. Multithreading (ExecutorService & Task)", SystemIntegrationTest::testMultithreading);
         runTest("8. Multithreading (Scheduled Deadline Monitor)", SystemIntegrationTest::testDeadlineMonitor);
         runTest("9. CSV & PDF Report Generation", SystemIntegrationTest::testReportExports);
+        runTest("10. Officer Add Student -> Auto User Login -> Student Apply -> Clean Delete", SystemIntegrationTest::testEndToEndOfficerStudentWorkflow);
 
         System.out.println("================================================================");
         System.out.printf("TEST SUMMARY: %d PASSED, %d FAILED\n", totalPassed, totalFailed);
@@ -220,30 +221,43 @@ public class SystemIntegrationTest {
     // TEST 6: Application Workflow, Transactions & History
     // -------------------------------------------------------------
     private static void testApplicationWorkflow() throws Exception {
-        // Query an existing open drive and student
-        List<PlacementDrive> drives = DriveManagement.getAllDrives();
-        assertTrue(!drives.isEmpty(), "Should have demo drives");
-        PlacementDrive drive = drives.get(0);
+        // Priya (Student 2) has pre-existing application for Drive 1
+        boolean duplicate = ApplicationManagement.hasAlreadyApplied(1, 2);
+        assertTrue(duplicate, "Priya (Student 2) application (drive 1, student 2) should exist");
 
-        List<Student> students = StudentManagement.getAllStudents();
-        assertTrue(!students.isEmpty(), "Should have demo students");
+        // Student 1 (Rahul Sharma) has NOT applied to Drive 1 yet in initial demo data
+        boolean s1AppliedBefore = ApplicationManagement.hasAlreadyApplied(1, 1);
+        assertTrue(!s1AppliedBefore, "Student 1 should NOT be initially applied to Drive 1");
 
-        // Test duplicate application prevention on already submitted demo application
-        boolean duplicate = ApplicationManagement.hasAlreadyApplied(1, 1);
-        assertTrue(duplicate, "Application (1, 1) should already exist");
+        // Test Student 1 applying fresh to Drive 1
+        boolean applied = ApplicationManagement.applyForDrive(1, 1, "Automated Test Submission");
+        assertTrue(applied, "Student 1 applying to Drive 1 should succeed");
+
+        // Test duplicate detection now blocks applying a second time
+        boolean s1AppliedAfter = ApplicationManagement.hasAlreadyApplied(1, 1);
+        assertTrue(s1AppliedAfter, "Student 1 application should now be detected as already applied");
+
+        // Find Student 1's newly created application
+        List<PlacementApplication> s1Apps = ApplicationManagement.getApplicationsByStudentId(1);
+        assertTrue(!s1Apps.isEmpty(), "Student 1 should have applications");
+        int newAppId = s1Apps.get(0).getApplicationId();
 
         // Test Status Update & Audit History Logging
         boolean updated = ApplicationManagement.updateApplicationStatus(
-                1, "Interview Scheduled", "2026-11-26 11:00 AM", "Cleared technical coding round", "OfficerTest"
+                newAppId, "Interview Scheduled", "2026-11-26 11:00 AM", "Cleared technical coding round", "OfficerTest"
         );
         assertTrue(updated, "Application status update should succeed");
 
         // Verify History Audit
-        List<ApplicationManagement.HistoryEntry> history = ApplicationManagement.getApplicationHistory(1);
+        List<ApplicationManagement.HistoryEntry> history = ApplicationManagement.getApplicationHistory(newAppId);
         assertTrue(!history.isEmpty(), "Application history should contain entries");
         ApplicationManagement.HistoryEntry latest = history.get(history.size() - 1);
         assertEquals("Interview Scheduled", latest.getNewStatus(), "Latest status should match update");
         assertEquals("OfficerTest", latest.getUpdatedBy(), "UpdatedBy audit should match");
+
+        // Test Deleting Application
+        boolean deleted = ApplicationManagement.deleteApplication(newAppId);
+        assertTrue(deleted, "Deleting test application should succeed");
     }
 
     // -------------------------------------------------------------
@@ -309,6 +323,65 @@ public class SystemIntegrationTest {
         csvFile.delete();
         pdfFile.delete();
         tempDir.delete();
+    }
+
+    // -------------------------------------------------------------
+    // TEST 10: Complete Officer & Student Portal End-to-End Workflow
+    // -------------------------------------------------------------
+    private static void testEndToEndOfficerStudentWorkflow() throws Exception {
+        String testRoll = "24TEST" + (System.currentTimeMillis() % 10000);
+        String testEmail = "testuser" + (System.currentTimeMillis() % 10000) + "@college.edu";
+        
+        // 1. Officer adds new student (auto-provisions student login credentials)
+        Student s = new Student(0, testRoll, "EndToEnd Test Student", testEmail, "9876543299",
+                "Computer Science", 8.90, 2026, "Java, Python, SQL", 0);
+        boolean added = StudentManagement.addStudent(s);
+        assertTrue(added, "Student record should be added successfully");
+        int newStudentId = s.getStudentId();
+        assertTrue(newStudentId > 0, "Student ID should be assigned");
+
+        // 2. Student logs in through Student Portal
+        String username = testRoll.toLowerCase();
+        String password = "student123";
+        LoginManagement.UserSession session = LoginManagement.authenticate(username, password);
+        assertNotNull(session, "Student should be able to log in with auto-provisioned credentials");
+        assertEquals("STUDENT", session.getRole(), "User role should be STUDENT");
+        assertEquals(newStudentId, session.getStudentId().intValue(), "Session studentId should match");
+
+        // 3. Student checks eligibility and applies for Drive 3 (TCS)
+        PlacementDrive drive3 = DriveManagement.getDriveById(3);
+        assertNotNull(drive3, "Drive 3 should exist");
+        Student currentStudent = StudentManagement.getStudentById(newStudentId);
+        DriveManagement.EligibilityResult el = DriveManagement.checkEligibility(currentStudent, drive3);
+        assertTrue(el.isEligible(), "Student should be eligible for Drive 3");
+
+        boolean applied = ApplicationManagement.applyForDrive(3, newStudentId, "Applied via student portal test");
+        assertTrue(applied, "Student should successfully apply for Drive 3");
+
+        // 4. Verify already applied detection
+        boolean duplicate = ApplicationManagement.hasAlreadyApplied(3, newStudentId);
+        assertTrue(duplicate, "Application should now be detected as already applied");
+
+        // 5. Officer updates application status
+        List<PlacementApplication> apps = ApplicationManagement.getApplicationsByStudentId(newStudentId);
+        assertTrue(!apps.isEmpty(), "Student should have 1 active application");
+        int appId = apps.get(0).getApplicationId();
+
+        boolean statusUpdated = ApplicationManagement.updateApplicationStatus(
+                appId, "Shortlisted", null, "Cleared online coding assessment", "officer"
+        );
+        assertTrue(statusUpdated, "Status update to Shortlisted should succeed");
+
+        // 6. Officer deletes student (testing cascade delete of student, user, and applications)
+        boolean deleted = StudentManagement.deleteStudent(newStudentId);
+        assertTrue(deleted, "Deleting student should succeed");
+
+        // 7. Verify clean deletion
+        Student afterDelete = StudentManagement.getStudentById(newStudentId);
+        assertTrue(afterDelete == null, "Student record should no longer exist");
+
+        LoginManagement.UserSession afterDeleteSession = LoginManagement.authenticate(username, password);
+        assertTrue(afterDeleteSession == null, "Deleted student account should not be able to log in");
     }
 
     // -------------------------------------------------------------

@@ -248,6 +248,18 @@ public class ApplicationManagement {
     }
 
     /**
+     * Deletes an application and its audit history.
+     */
+    public static boolean deleteApplication(int applicationId) throws SQLException {
+        String sql = "DELETE FROM applications WHERE application_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, applicationId);
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
      * Retrieves audit history for an application.
      */
     public static List<HistoryEntry> getApplicationHistory(int applicationId) throws SQLException {

@@ -74,10 +74,13 @@ public class ApplicationScreen {
         Button historyBtn = new Button("View Audit History");
         historyBtn.getStyleClass().add("btn-secondary");
 
+        Button deleteAppBtn = new Button("Delete Application");
+        deleteAppBtn.getStyleClass().add("btn-danger");
+
         Button refreshBtn = new Button("Refresh");
         refreshBtn.getStyleClass().add("btn-secondary");
 
-        toolbar.getChildren().addAll(searchField, statusFilter, updateStatusBtn, historyBtn, refreshBtn);
+        toolbar.getChildren().addAll(searchField, statusFilter, updateStatusBtn, historyBtn, deleteAppBtn, refreshBtn);
 
         // TableView Configuration
         appTable = new TableView<>();
@@ -154,6 +157,27 @@ public class ApplicationScreen {
                 return;
             }
             showHistoryDialog(selected);
+        });
+
+        deleteAppBtn.setOnAction(e -> {
+            PlacementApplication selected = appTable.getSelectionModel().getSelectedItem();
+            if (selected == null) {
+                AlertUtil.showWarning("No Selection", "Please select an application from the table to delete.");
+                return;
+            }
+            boolean confirm = AlertUtil.showConfirmation(
+                    "Delete Application Record",
+                    "Are you sure you want to delete application #" + selected.getApplicationId() + " for " + selected.getStudentName() + " (" + selected.getCompanyName() + " - " + selected.getJobRole() + ")?\nThis action cannot be undone."
+            );
+            if (confirm) {
+                try {
+                    ApplicationManagement.deleteApplication(selected.getApplicationId());
+                    AlertUtil.showInfo("Application Deleted", "Application #" + selected.getApplicationId() + " successfully deleted.");
+                    loadApplications();
+                } catch (Exception ex) {
+                    AlertUtil.showError("Delete Error", "Cannot delete application: " + ex.getMessage());
+                }
+            }
         });
 
         contentBox.getChildren().addAll(titleBox, toolbar, appTable);
