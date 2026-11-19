@@ -7,7 +7,6 @@ CREATE DATABASE IF NOT EXISTS campus_placement;
 USE campus_placement;
 
 -- Drop existing tables in reverse dependency order
-DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS application_history;
 DROP TABLE IF EXISTS applications;
 DROP TABLE IF EXISTS placement_drives;
@@ -99,18 +98,6 @@ CREATE TABLE application_history (
     FOREIGN KEY (application_id) REFERENCES applications(application_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 7. NOTIFICATIONS TABLE
-CREATE TABLE notifications (
-    notification_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NULL,
-    title VARCHAR(150) NOT NULL,
-    message TEXT NOT NULL,
-    notification_type VARCHAR(50) NOT NULL, -- 'NEW_DRIVE', 'STATUS_CHANGE', 'DEADLINE_ALERT', 'GENERAL'
-    is_read TINYINT(1) NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- ==========================================================
 -- SAMPLE DEMO DATA
 -- Password for all demo accounts is their username + '123' (e.g. admin123, officer123, student123)
@@ -177,10 +164,3 @@ INSERT INTO application_history (history_id, application_id, old_status, new_sta
 (5, 3, 'Interview Scheduled', 'Selected', 'officer', 'Candidate cleared all rounds with top score'),
 (6, 7, 'Applied', 'Selected', 'officer', 'Direct campus placement offer'),
 (7, 8, 'Applied', 'Rejected', 'officer', 'Eligibility criteria not met');
-
--- Insert Sample Notifications
-INSERT INTO notifications (notification_id, user_id, title, message, notification_type, is_read) VALUES
-(1, 3, 'Application Shortlisted', 'Congratulations! You have been shortlisted for Associate Software Engineer at Google.', 'STATUS_CHANGE', 0),
-(2, 4, 'Offer Letter Released', 'Hearty Congratulations! You have been selected for Google with a package of 24.5 LPA.', 'STATUS_CHANGE', 0),
-(3, NULL, 'New Placement Drive Announced', 'Microsoft has announced campus recruitment for SDE I (21.0 LPA). Check eligibility and apply.', 'NEW_DRIVE', 0),
-(4, NULL, 'Deadline Approaching', 'Application deadline for TCS Digital Systems Specialist is expiring in 24 hours!', 'DEADLINE_ALERT', 0);

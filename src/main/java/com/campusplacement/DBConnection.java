@@ -202,17 +202,6 @@ public class DBConnection {
                     + "changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
                     + "FOREIGN KEY (application_id) REFERENCES applications(application_id) ON DELETE CASCADE)");
 
-            // Notifications table
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS notifications ("
-                    + "notification_id INTEGER PRIMARY KEY " + (usingMySQL ? "AUTO_INCREMENT" : "AUTOINCREMENT") + ", "
-                    + "user_id INT NULL, "
-                    + "title VARCHAR(150) NOT NULL, "
-                    + "message TEXT NOT NULL, "
-                    + "notification_type VARCHAR(50) NOT NULL, "
-                    + "is_read INT NOT NULL DEFAULT 0, "
-                    + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-                    + "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE)");
-
             // Insert default sample data
             insertSampleData(stmt);
 
@@ -281,13 +270,6 @@ public class DBConnection {
                 + "(5, 3, 'Interview Scheduled', 'Selected', 'officer', 'Candidate cleared all rounds with top score'), "
                 + "(6, 7, 'Applied', 'Selected', 'officer', 'Direct campus placement offer'), "
                 + "(7, 8, 'Applied', 'Rejected', 'officer', 'Eligibility criteria not met')");
-
-        // Notifications
-        stmt.executeUpdate("INSERT INTO notifications (notification_id, user_id, title, message, notification_type, is_read) VALUES "
-                + "(1, 3, 'Application Shortlisted', 'Congratulations! You have been shortlisted for Associate Software Engineer at Google.', 'STATUS_CHANGE', 0), "
-                + "(2, 4, 'Offer Letter Released', 'Hearty Congratulations! You have been selected for Google with a package of 24.5 LPA.', 'STATUS_CHANGE', 0), "
-                + "(3, NULL, 'New Placement Drive Announced', 'Microsoft has announced campus recruitment for SDE I (21.0 LPA). Check eligibility and apply.', 'NEW_DRIVE', 0), "
-                + "(4, NULL, 'Deadline Approaching', 'Application deadline for TCS Digital Systems Specialist is expiring in 24 hours!', 'DEADLINE_ALERT', 0)");
     }
 
     public static boolean isUsingMySQL() {

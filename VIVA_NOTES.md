@@ -51,7 +51,7 @@ In college viva evaluations, examiners frequently penalize over-engineered proje
 
 ### Our Clean Management Architecture:
 Instead of confusing MVC/DAO layers:
-1. **Model Classes (`com.campusplacement.model`):** Plain Java objects (POJOs) representing entities (`Student`, `Company`, `PlacementDrive`, `PlacementApplication`, `Notification`).
+1. **Model Classes (`com.campusplacement.model`):** Plain Java objects (POJOs) representing entities (`Student`, `Company`, `PlacementDrive`, `PlacementApplication`).
 2. **Management Classes (`com.campusplacement.management`):** Pure Java backend classes containing business rules, validation, and direct JDBC SQL operations using `PreparedStatement`.
 3. **Screen Classes (`com.campusplacement.screens`):** JavaFX presentation layouts with event handlers responding to button clicks, search keystrokes, and table selections.
 4. **Concurrency Classes (`com.campusplacement.concurrency`):** Thread pool management and scheduled background workers.
@@ -69,7 +69,6 @@ Instead of confusing MVC/DAO layers:
 - **`Company.java`:** Stores recruiting company information (name, industry, location, website, HR contact, email).
 - **`PlacementDrive.java`:** Represents a recruitment drive (company ID, role, package in LPA, minimum CGPA, eligible departments, max backlogs, deadline, status).
 - **`PlacementApplication.java`:** Represents a student's application for a specific drive with current status and interview scheduling remarks.
-- **`Notification.java`:** Encapsulates internal notifications, types (`NEW_DRIVE`, `STATUS_CHANGE`, `DEADLINE_ALERT`), and read/unread status.
 
 ### Management Package: `com.campusplacement.management`
 - **`LoginManagement.java`:** Performs database-backed user authentication. Matches SHA-256 password hashes and returns a `UserSession` with user role.
@@ -87,7 +86,7 @@ Instead of confusing MVC/DAO layers:
 - **`DriveScreen.java`:** Schedule drives and inspect eligible candidates meeting specific criteria.
 - **`ApplicationScreen.java`:** Manage recruitment stages (Shortlist, Schedule Interview, Select, Reject) and view full audit trails.
 - **`ReportScreen.java`:** Configure and export PDF/CSV placement reports on a background thread with live `ProgressBar`.
-- **`StudentDashboardScreen.java`:** Student portal for profile checking, eligibility testing, 1-click drive applying, and notification alerts.
+- **`StudentDashboardScreen.java`:** Student portal for profile checking, eligibility testing, and 1-click drive applying.
 
 ### Concurrency Package: `com.campusplacement.concurrency`
 - **`BackgroundTasks.java`:** Holds an `ExecutorService` thread pool. Creates `javafx.concurrent.Task` instances for background queries and PDF generation.
@@ -182,10 +181,9 @@ try (Connection conn = DBConnection.getConnection();
 *Viva Note:* This completely prevents database connection leaks and memory exhaustion.
 
 ### Database Transactions (`setAutoCommit`, `commit`, `rollback`)
-When an application status changes, three operations must succeed together:
+When an application status changes, multiple operations must succeed together:
 1. Update `applications` table.
 2. Insert audit row into `application_history`.
-3. Insert system notification into `notifications`.
 
 If operation 2 fails, operation 1 must NOT remain committed.
 ```java
@@ -243,9 +241,8 @@ ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
 scheduler.scheduleAtFixedRate(DeadlineMonitor::checkDeadlines, 3, 30, TimeUnit.SECONDS);
 ```
 - Runs in the background every 30 seconds.
-- Queries drives expiring within 48 hours.
-- Inserts notifications without duplicates.
-- Calls `Platform.runLater()` to refresh UI notification badges.
+- Queries drives expiring after their deadline.
+- Automatically marks expired drives as 'CLOSED' in the database.
 
 ---
 

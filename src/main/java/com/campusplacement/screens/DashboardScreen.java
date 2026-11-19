@@ -86,20 +86,6 @@ public class DashboardScreen {
         navApps.setOnAction(e -> MainApp.showApplicationScreen());
         navReports.setOnAction(e -> MainApp.showReportScreen());
 
-        // Notification Indicator
-        HBox notifBox = new HBox(8);
-        notifBox.setAlignment(Pos.CENTER_LEFT);
-        Label notifLbl = new Label("Notifications");
-        notifLbl.setStyle("-fx-text-fill: #94a3b8; -fx-font-weight: bold;");
-        Label notifBadge = new Label("0");
-        notifBadge.getStyleClass().add("notif-badge");
-        notifBox.getChildren().addAll(notifLbl, notifBadge);
-        notifBox.setPadding(new Insets(10, 15, 0, 15));
-
-        // Asynchronously update badge count
-        refreshNotificationBadge(notifBadge);
-        DeadlineMonitor.setOnNotificationGenerated(() -> refreshNotificationBadge(notifBadge));
-
         // Logout Button
         Button logoutBtn = new Button("Sign Out");
         logoutBtn.getStyleClass().add("sidebar-logout-btn");
@@ -124,24 +110,11 @@ public class DashboardScreen {
                 navDrives,
                 navApps,
                 navReports,
-                notifBox,
                 spacer,
                 logoutBtn
         );
 
         return sidebar;
-    }
-
-    private static void refreshNotificationBadge(Label badge) {
-        new Thread(() -> {
-            try {
-                int count = ApplicationManagement.getUnreadNotificationCount(null);
-                Platform.runLater(() -> {
-                    badge.setText(String.valueOf(count));
-                    badge.setVisible(count > 0);
-                });
-            } catch (Exception ignored) {}
-        }).start();
     }
 
     public static Parent createContent() {

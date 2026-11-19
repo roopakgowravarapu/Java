@@ -274,12 +274,10 @@ public class SystemIntegrationTest {
     // TEST 8: Multithreading - Scheduled Deadline Monitor
     // -------------------------------------------------------------
     private static void testDeadlineMonitor() throws Exception {
-        // Run check directly to verify business logic
+        // Run periodic deadline monitor to auto-close expired drives
         DeadlineMonitor.checkDeadlines();
-
-        // Verify unread notification count
-        int count = ApplicationManagement.getUnreadNotificationCount(null);
-        assertTrue(count >= 0, "Unread notification count should be non-negative");
+        List<PlacementDrive> allDrives = DriveManagement.getAllDrives();
+        assertTrue(!allDrives.isEmpty(), "Drives should exist and be monitored");
     }
 
     // -------------------------------------------------------------

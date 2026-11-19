@@ -75,7 +75,6 @@ public class ApplicationManagement {
 
         String insertAppSql = "INSERT INTO applications (drive_id, student_id, status, remarks) VALUES (?, ?, 'Applied', ?)";
         String insertHistSql = "INSERT INTO application_history (application_id, old_status, new_status, updated_by, comments) VALUES (?, NULL, 'Applied', ?, ?)";
-        String insertNotifSql = "INSERT INTO notifications (user_id, title, message, notification_type) VALUES (?, ?, ?, 'STATUS_CHANGE')";
 
         try (Connection conn = DBConnection.getConnection()) {
             conn.setAutoCommit(false); // Begin Transaction
@@ -99,17 +98,6 @@ public class ApplicationManagement {
                     stmt.setString(2, student.getFullName());
                     stmt.setString(3, "Initial application submission");
                     stmt.executeUpdate();
-                }
-
-                // Notify Student User
-                Integer userId = getUserIdForStudent(conn, studentId);
-                if (userId != null) {
-                    try (PreparedStatement stmt = conn.prepareStatement(insertNotifSql)) {
-                        stmt.setInt(1, userId);
-                        stmt.setString(2, "Application Submitted: " + drive.getCompanyName());
-                        stmt.setString(3, "Your application for " + drive.getJobRole() + " at " + drive.getCompanyName() + " has been successfully submitted.");
-                        stmt.executeUpdate();
-                    }
                 }
 
                 conn.commit(); // Commit Transaction
@@ -153,7 +141,6 @@ public class ApplicationManagement {
 
         String updateSql = "UPDATE applications SET status = ?, interview_date = ?, remarks = ? WHERE application_id = ?";
         String historySql = "INSERT INTO application_history (application_id, old_status, new_status, updated_by, comments) VALUES (?, ?, ?, ?, ?)";
-        String notifSql = "INSERT INTO notifications (user_id, title, message, notification_type) VALUES (?, ?, ?, 'STATUS_CHANGE')";
 
         try (Connection conn = DBConnection.getConnection()) {
             conn.setAutoCommit(false);
@@ -194,22 +181,6 @@ public class ApplicationManagement {
                     stmt.setString(4, updatedBy != null ? updatedBy : "Officer");
                     stmt.setString(5, comments != null ? comments.trim() : "Status updated to " + newStatus);
                     stmt.executeUpdate();
-                }
-
-                // 3. Send Notification to Student
-                Integer userId = getUserIdForStudent(conn, studentId);
-                if (userId != null) {
-                    try (PreparedStatement stmt = conn.prepareStatement(notifSql)) {
-                        stmt.setInt(1, userId);
-                        stmt.setString(2, "Application Update: " + companyName);
-                        String msg = "Your application for " + jobRole + " at " + companyName 
-                                   + " has been updated to: " + newStatus.toUpperCase();
-                        if ("Interview Scheduled".equalsIgnoreCase(newStatus) && interviewDate != null) {
-                            msg += " (Interview Time: " + interviewDate + ")";
-                        }
-                        stmt.setString(3, msg);
-                        stmt.executeUpdate();
-                    }
                 }
 
                 conn.commit();
@@ -386,80 +357,5 @@ public class ApplicationManagement {
                 rs.getString("interview_date"),
                 rs.getString("remarks")
         );
-    }
-
-    // ==========================================================
-    // NOTIFICATION DATABASE OPERATIONS
-    // ==========================================================
-
-    /**
-     * Retrieves notifications for the active user (including broadcasts where user_id is null).
-     */
-    public static List<com.campusplacement.model.Notification> getNotificationsForUser(Integer userId) throws SQLException {
-        List<com.campusplacement.model.Notification> list = new ArrayList<>();
-        String sql = "SELECT notification_id, user_id, title, message, notification_type, is_read, created_at "
-                   + "FROM notifications "
-                   + "WHERE user_id IS NULL " + (userId != null ? "OR user_id = ? " : "")
-                   + "ORDER BY notification_id DESC";
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            if (userId != null) {
-                stmt.setInt(1, userId);
-            }
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    int uidVal = rs.getInt("user_id");
-                    Integer uId = rs.wasNull() ? null : uidVal;
-                    list.add(new com.campusplacement.model.Notification(
-                            rs.getInt("notification_id"),
-                            uId,
-                            rs.getString("title"),
-                            rs.getString("message"),
-                            rs.getString("notification_type"),
-                            rs.getInt("is_read") == 1,
-                            rs.getString("created_at")
-                    ));
-                }
-            }
-        }
-        return list;
-    }
-
-    /**
-     * Marks a notification as read.
-     */
-    public static boolean markNotificationAsRead(int notificationId) throws SQLException {
-        String sql = "UPDATE notifications SET is_read = 1 WHERE notification_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, notificationId);
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    /**
-     * Gets unread notification count for the active user.
-     */
-    public static int getUnreadNotificationCount(Integer userId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM notifications WHERE is_read = 0 "
-                   + "AND (user_id IS NULL " + (userId != null ? "OR user_id = ?" : "") + ")";
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            if (userId != null) {
-                stmt.setInt(1, userId);
-            }
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
-            }
-        }
-        return 0;
     }
 }

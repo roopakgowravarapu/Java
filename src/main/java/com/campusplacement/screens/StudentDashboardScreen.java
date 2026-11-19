@@ -5,7 +5,6 @@ import com.campusplacement.management.ApplicationManagement;
 import com.campusplacement.management.DriveManagement;
 import com.campusplacement.management.LoginManagement;
 import com.campusplacement.management.StudentManagement;
-import com.campusplacement.model.Notification;
 import com.campusplacement.model.PlacementApplication;
 import com.campusplacement.model.PlacementDrive;
 import com.campusplacement.model.Student;
@@ -21,7 +20,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
@@ -35,7 +33,7 @@ import javafx.scene.layout.VBox;
 /**
  * Dedicated Student Portal Screen.
  * Allows students to review their profile, evaluate placement eligibility,
- * submit online applications, track recruitment stages, and view notifications.
+ * submit online applications, and track recruitment stages.
  */
 public class StudentDashboardScreen {
 
@@ -44,8 +42,6 @@ public class StudentDashboardScreen {
 
     private static TableView<PlacementApplication> myAppsTable;
     private static ObservableList<PlacementApplication> myAppsList = FXCollections.observableArrayList();
-
-    private static ListView<String> notifListView;
 
     public static Parent createContent() {
         BorderPane root = new BorderPane();
@@ -101,11 +97,7 @@ public class StudentDashboardScreen {
         Tab appsTab = new Tab("My Applied Drives", createAppTrackerView(currentStudent));
         appsTab.setClosable(false);
 
-        // TAB 4: Notifications & Alerts
-        Tab notifsTab = new Tab("Notifications", createNotificationsView(user));
-        notifsTab.setClosable(false);
-
-        tabPane.getTabs().addAll(profileTab, drivesTab, appsTab, notifsTab);
+        tabPane.getTabs().addAll(profileTab, drivesTab, appsTab);
         root.setCenter(tabPane);
 
         return root;
@@ -346,49 +338,5 @@ public class StudentDashboardScreen {
         } catch (Exception e) {
             System.err.println("Error loading student applications: " + e.getMessage());
         }
-    }
-
-    private static Parent createNotificationsView(LoginManagement.UserSession user) {
-        VBox box = new VBox(15);
-        box.setStyle("-fx-padding: 20px; -fx-background-color: #f8fafc;");
-
-        Label title = new Label("Placement Alerts & Announcements");
-        title.getStyleClass().add("view-header");
-
-        HBox actions = new HBox(10);
-        Button refreshBtn = new Button("Refresh");
-        refreshBtn.getStyleClass().add("btn-secondary");
-
-        Button markReadBtn = new Button("Mark Selected as Read");
-        markReadBtn.getStyleClass().add("btn-primary");
-
-        actions.getChildren().addAll(refreshBtn, markReadBtn);
-
-        notifListView = new ListView<>();
-        VBox.setVgrow(notifListView, Priority.ALWAYS);
-
-        Runnable loadNotifs = () -> {
-            notifListView.getItems().clear();
-            try {
-                List<Notification> notifs = ApplicationManagement.getNotificationsForUser(user != null ? user.getUserId() : null);
-                for (Notification n : notifs) {
-                    String prefix = n.isRead() ? "[READ] " : "[NEW] ";
-                    notifListView.getItems().add(prefix + n.getTitle() + " - " + n.getMessage() + " (" + n.getCreatedAt() + ")");
-                }
-            } catch (Exception ex) {
-                notifListView.getItems().add("Error loading notifications: " + ex.getMessage());
-            }
-        };
-
-        refreshBtn.setOnAction(e -> loadNotifs.run());
-        markReadBtn.setOnAction(e -> {
-            AlertUtil.showInfo("Notification", "Notifications marked as read.");
-            loadNotifs.run();
-        });
-
-        box.getChildren().addAll(title, actions, notifListView);
-        loadNotifs.run();
-
-        return box;
     }
 }

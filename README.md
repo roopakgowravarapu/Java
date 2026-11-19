@@ -18,7 +18,7 @@ Built using **Core Java, JavaFX, JDBC, MySQL, and Java Concurrency Utilities**, 
 - Passwords stored as **SHA-256 cryptographic hashes**.
 - 2 distinct user roles:
   - **Placement Officer:** Complete placement oversight (Students, Companies, Drives, Applications, Reports, Selection Results).
-  - **Student:** Profile viewing, drive discovery, automated eligibility checking, 1-click application submission, status tracking, notifications.
+  - **Student:** Profile viewing, drive discovery, automated eligibility checking, 1-click application submission, status tracking.
 - Automatic routing to Placement Officer dashboard or student portal based on authenticated role.
 
 ### 📊 2. Dynamic Placement Dashboard
@@ -67,14 +67,9 @@ Built using **Core Java, JavaFX, JDBC, MySQL, and Java Concurrency Utilities**, 
 - Atomic **Database Transactions** (`setAutoCommit(false)`, `commit()`, `rollback()`):
   - Updates application status.
   - Inserts immutable audit history into `application_history`.
-  - Automatically sends system notifications to the candidate.
 - View entire status audit trail with timestamps, stage notes, and officer names.
 
-### 🔔 7. Internal Notification System
-- System notifications for new placement drives, deadline warnings, and application updates.
-- Real-time unread notification badge indicator in the sidebar.
-
-### 📄 8. Asynchronous Report Generation (CSV & PDF)
+### 📄 7. Asynchronous Report Generation (CSV & PDF)
 - Complete student lists, company summaries, and selection/rejection rosters.
 - Formatted **PDF Document** generation using **Apache PDFBox** with official headers, tables, and timestamps.
 - **CSV Spreadsheet** export compatible with Excel and Google Sheets.
@@ -118,8 +113,7 @@ CampusPlacementSystem/
 │   │   ├── Student.java
 │   │   ├── Company.java
 │   │   ├── PlacementDrive.java
-│   │   ├── PlacementApplication.java
-│   │   └── Notification.java
+│   │   └── PlacementApplication.java
 │   │
 │   ├── management/                        # Application Logic & Direct JDBC Operations
 │   │   ├── LoginManagement.java
