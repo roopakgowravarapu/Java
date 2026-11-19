@@ -1,0 +1,26 @@
+# Compiled class files
+target/
+bin/
+*.class
+
+# Log files
+*.log
+
+# Database files
+*.db
+campus_placement.db
+
+# OpenJFX cache
+.openjfx/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS generated
+Thumbs.db
+Desktop.ini
