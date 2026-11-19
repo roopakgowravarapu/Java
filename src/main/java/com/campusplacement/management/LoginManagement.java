@@ -37,7 +37,6 @@ public class LoginManagement {
         public String getEmail() { return email; }
         public Integer getStudentId() { return studentId; }
 
-        public boolean isAdmin() { return "ADMIN".equalsIgnoreCase(role); }
         public boolean isOfficer() { return "OFFICER".equalsIgnoreCase(role); }
         public boolean isStudent() { return "STUDENT".equalsIgnoreCase(role); }
     }

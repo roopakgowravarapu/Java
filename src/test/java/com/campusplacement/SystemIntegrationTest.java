@@ -103,10 +103,10 @@ public class SystemIntegrationTest {
     // TEST 2: Authentication
     // -------------------------------------------------------------
     private static void testAuthentication() throws Exception {
-        // Valid Admin login
-        LoginManagement.UserSession adminSession = LoginManagement.authenticate("admin", "admin123");
-        assertNotNull(adminSession, "Admin login should succeed");
-        assertTrue(adminSession.isAdmin(), "Role should be ADMIN");
+        // Valid Placement Officer login
+        LoginManagement.UserSession officerSession = LoginManagement.authenticate("officer", "officer123");
+        assertNotNull(officerSession, "Officer login should succeed");
+        assertTrue(officerSession.isOfficer(), "Role should be OFFICER");
 
         // Valid Student login
         LoginManagement.UserSession studentSession = LoginManagement.authenticate("student", "student123");
@@ -115,7 +115,7 @@ public class SystemIntegrationTest {
         assertNotNull(studentSession.getStudentId(), "Student ID should be linked");
 
         // Invalid login test
-        LoginManagement.UserSession failedSession = LoginManagement.authenticate("admin", "wrong_password");
+        LoginManagement.UserSession failedSession = LoginManagement.authenticate("officer", "wrong_password");
         assertNull(failedSession, "Invalid password should return null session");
     }
 

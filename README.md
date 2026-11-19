@@ -16,11 +16,10 @@ Built using **Core Java, JavaFX, JDBC, MySQL, and Java Concurrency Utilities**, 
 ### 🔐 1. Authentication & Role-Based Access Control
 - Secure login backed by database authentication.
 - Passwords stored as **SHA-256 cryptographic hashes**.
-- 3 distinct user roles:
-  - **Administrator:** Full system control (Students, Companies, Drives, Applications, Reports).
-  - **Placement Officer:** Student evaluations, drive scheduling, application status updates, interview scheduling.
+- 2 distinct user roles:
+  - **Placement Officer:** Complete placement oversight (Students, Companies, Drives, Applications, Reports, Selection Results).
   - **Student:** Profile viewing, drive discovery, automated eligibility checking, 1-click application submission, status tracking, notifications.
-- Automatic routing to administrative dashboard or student portal based on authenticated role.
+- Automatic routing to Placement Officer dashboard or student portal based on authenticated role.
 
 ### 📊 2. Dynamic Placement Dashboard
 - Real-time KPI statistics loaded directly from MySQL:
@@ -197,8 +196,7 @@ The database comes pre-seeded with accounts for all roles:
 
 | Role | Username | Password | Linked Profile / Permissions |
 |---|---|---|---|
-| **Administrator** | `admin` | `admin123` | Full administrative access to all modules |
-| **Placement Officer** | `officer` | `officer123` | Student records, Drives, Status Updates, Reports |
+| **Placement Officer** | `officer` | `officer123` | Full access to Students, Companies, Drives, Applications, Reports |
 | **Student (Placed)** | `priya` | `priya123` | Priya Patel (IT, CGPA 9.10) - Placed at Google |
 | **Student (Active)** | `student` | `student123` | Rahul Sharma (CSE, CGPA 8.75) - Shortlisted |
 

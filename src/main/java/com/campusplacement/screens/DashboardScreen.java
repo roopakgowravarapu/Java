@@ -49,8 +49,8 @@ public class DashboardScreen {
         VBox userBox = new VBox(3);
         userBox.getStyleClass().add("sidebar-user-box");
         LoginManagement.UserSession user = LoginManagement.getCurrentUser();
-        String uName = user != null ? user.getUsername() : "Administrator";
-        String uRole = user != null ? user.getRole() : "ADMIN";
+        String uName = user != null ? user.getUsername() : "Placement Officer";
+        String uRole = user != null ? user.getRole() : "OFFICER";
         Label nameLbl = new Label(uName.toUpperCase());
         nameLbl.getStyleClass().add("sidebar-user-name");
         Label roleLbl = new Label("Role: " + uRole);

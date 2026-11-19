@@ -40,7 +40,7 @@ public class LoginScreen {
         Label userLabel = new Label("Username or Registered Email");
         userLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #334155;");
         TextField userField = new TextField();
-        userField.setPromptText("Enter username (e.g. admin or student)");
+        userField.setPromptText("Enter username (e.g. officer or student)");
 
         Label passLabel = new Label("Password");
         passLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #334155;");
@@ -111,17 +111,9 @@ public class LoginScreen {
         HBox demoBtnBox = new HBox(8);
         demoBtnBox.setAlignment(Pos.CENTER);
 
-        Button adminFill = new Button("Admin");
-        adminFill.getStyleClass().add("btn-secondary");
-        adminFill.setStyle("-fx-font-size: 11px; -fx-padding: 5px 10px;");
-        adminFill.setOnAction(e -> {
-            userField.setText("admin");
-            passField.setText("admin123");
-        });
-
-        Button officerFill = new Button("Officer");
+        Button officerFill = new Button("Placement Officer");
         officerFill.getStyleClass().add("btn-secondary");
-        officerFill.setStyle("-fx-font-size: 11px; -fx-padding: 5px 10px;");
+        officerFill.setStyle("-fx-font-size: 11px; -fx-padding: 5px 12px;");
         officerFill.setOnAction(e -> {
             userField.setText("officer");
             passField.setText("officer123");
@@ -129,13 +121,13 @@ public class LoginScreen {
 
         Button studentFill = new Button("Student");
         studentFill.getStyleClass().add("btn-secondary");
-        studentFill.setStyle("-fx-font-size: 11px; -fx-padding: 5px 10px;");
+        studentFill.setStyle("-fx-font-size: 11px; -fx-padding: 5px 12px;");
         studentFill.setOnAction(e -> {
             userField.setText("student");
             passField.setText("student123");
         });
 
-        demoBtnBox.getChildren().addAll(adminFill, officerFill, studentFill);
+        demoBtnBox.getChildren().addAll(officerFill, studentFill);
 
         // Layout Assembly
         VBox fieldsBox = new VBox(6);

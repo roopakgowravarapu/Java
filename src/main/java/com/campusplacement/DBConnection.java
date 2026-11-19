@@ -235,10 +235,9 @@ public class DBConnection {
 
         // Users
         stmt.executeUpdate("INSERT INTO users (user_id, username, password_hash, role, email, student_id) VALUES "
-                + "(1, 'admin', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'ADMIN', 'admin@campusplacement.edu', NULL), "
-                + "(2, 'officer', '118b8d35a17bcf2c7d2d790509e12308dc6332c5d234f0098d2d6be6700bebb1', 'OFFICER', 'placement.officer@college.edu', NULL), "
-                + "(3, 'student', '703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b', 'STUDENT', 'rahul.sharma@college.edu', 1), "
-                + "(4, 'priya', '0a8b8dfad3f637d7d30fed7b108c5c5986c4775d14cab26ec9279866eba99116', 'STUDENT', 'priya.patel@college.edu', 2)");
+                + "(1, 'officer', '118b8d35a17bcf2c7d2d790509e12308dc6332c5d234f0098d2d6be6700bebb1', 'OFFICER', 'placement.officer@college.edu', NULL), "
+                + "(2, 'student', '703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b', 'STUDENT', 'rahul.sharma@college.edu', 1), "
+                + "(3, 'priya', '0a8b8dfad3f637d7d30fed7b108c5c5986c4775d14cab26ec9279866eba99116', 'STUDENT', 'priya.patel@college.edu', 2)");
 
         // Companies
         stmt.executeUpdate("INSERT INTO companies (company_id, company_name, industry, location, website, hr_contact, email) VALUES "

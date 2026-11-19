@@ -37,7 +37,7 @@ CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(30) NOT NULL, -- 'ADMIN', 'OFFICER', 'STUDENT'
+    role VARCHAR(30) NOT NULL, -- 'OFFICER', 'STUDENT'
     email VARCHAR(100) NOT NULL UNIQUE,
     student_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -132,15 +132,13 @@ INSERT INTO students (student_id, roll_number, full_name, email, phone_number, d
 (8, '24CS108', 'Meera Nair', 'meera.nair@college.edu', '9876543217', 'Computer Science', 9.45, 2026, 'Java, Kotlin, Android, Cloud, Microservices', 0);
 
 -- Sample Users with real SHA-256 hashes
--- admin / admin123: 240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9
 -- officer / officer123: 118b8d35a17bcf2c7d2d790509e12308dc6332c5d234f0098d2d6be6700bebb1
 -- student / student123: 703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b
 -- priya / priya123: 0a8b8dfad3f637d7d30fed7b108c5c5986c4775d14cab26ec9279866eba99116
 INSERT INTO users (user_id, username, password_hash, role, email, student_id) VALUES
-(1, 'admin', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'ADMIN', 'admin@campusplacement.edu', NULL),
-(2, 'officer', '118b8d35a17bcf2c7d2d790509e12308dc6332c5d234f0098d2d6be6700bebb1', 'OFFICER', 'placement.officer@college.edu', NULL),
-(3, 'student', '703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b', 'STUDENT', 'rahul.sharma@college.edu', 1),
-(4, 'priya', '0a8b8dfad3f637d7d30fed7b108c5c5986c4775d14cab26ec9279866eba99116', 'STUDENT', 'priya.patel@college.edu', 2);
+(1, 'officer', '118b8d35a17bcf2c7d2d790509e12308dc6332c5d234f0098d2d6be6700bebb1', 'OFFICER', 'placement.officer@college.edu', NULL),
+(2, 'student', '703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b', 'STUDENT', 'rahul.sharma@college.edu', 1),
+(3, 'priya', '0a8b8dfad3f637d7d30fed7b108c5c5986c4775d14cab26ec9279866eba99116', 'STUDENT', 'priya.patel@college.edu', 2);
 
 -- Insert Sample Companies
 INSERT INTO companies (company_id, company_name, industry, location, website, hr_contact, email) VALUES
