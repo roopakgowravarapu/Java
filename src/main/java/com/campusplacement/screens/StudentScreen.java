@@ -4,6 +4,7 @@ import com.campusplacement.concurrency.BackgroundTasks;
 import com.campusplacement.management.StudentManagement;
 import com.campusplacement.model.Student;
 import com.campusplacement.utils.AlertUtil;
+import java.util.ArrayList;
 import java.util.List;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -19,6 +20,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -84,10 +86,13 @@ public class StudentScreen {
         Button deleteBtn = new Button("Delete");
         deleteBtn.getStyleClass().add("btn-danger");
 
+        Button selectAllBtn = new Button("Select All");
+        selectAllBtn.getStyleClass().add("btn-secondary");
+
         Button refreshBtn = new Button("Refresh");
         refreshBtn.getStyleClass().add("btn-secondary");
 
-        toolbar.getChildren().addAll(searchField, deptFilter, addBtn, editBtn, deleteBtn, refreshBtn);
+        toolbar.getChildren().addAll(searchField, deptFilter, addBtn, editBtn, deleteBtn, selectAllBtn, refreshBtn);
 
         // Loading and Status Bar
         loadingBar = new ProgressBar();
@@ -99,6 +104,7 @@ public class StudentScreen {
 
         // TableView Configuration
         studentTable = new TableView<>();
+        studentTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         studentTable.setItems(studentList);
         VBox.setVgrow(studentTable, Priority.ALWAYS);
 
@@ -167,28 +173,46 @@ public class StudentScreen {
             showStudentForm(selected);
         });
 
-        // 6. Delete Student Action
+        // 6. Select All / Deselect All Action
+        selectAllBtn.setOnAction(e -> {
+            if (studentTable.getSelectionModel().getSelectedItems().size() == studentList.size() && !studentList.isEmpty()) {
+                studentTable.getSelectionModel().clearSelection();
+                selectAllBtn.setText("Select All");
+            } else {
+                studentTable.getSelectionModel().selectAll();
+                selectAllBtn.setText("Deselect All");
+            }
+        });
+
+        // 7. Delete Student Action (Supports Single or Multi-Selection / Select All)
         deleteBtn.setOnAction(e -> {
-            Student selected = studentTable.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                AlertUtil.showWarning("No Selection", "Please select a student to delete.");
+            ObservableList<Student> selectedStudents = studentTable.getSelectionModel().getSelectedItems();
+            if (selectedStudents.isEmpty()) {
+                AlertUtil.showWarning("No Selection", "Please select one or more students to delete.");
                 return;
             }
 
-            boolean confirmed = AlertUtil.showConfirmation(
-                    "Delete Student Record",
-                    "Are you sure you want to delete student: " + selected.getFullName() + " (" + selected.getRollNumber() + ")?\nAll associated applications will also be removed."
-            );
+            int count = selectedStudents.size();
+            String prompt = (count == 1)
+                    ? "Are you sure you want to delete student: " + selectedStudents.get(0).getFullName() + " (" + selectedStudents.get(0).getRollNumber() + ")?\nAll associated applications and login user account will be removed."
+                    : "Are you sure you want to delete ALL " + count + " selected student records?\nAll associated applications and login user accounts will also be removed.";
+
+            boolean confirmed = AlertUtil.showConfirmation("Delete Student Record(s)", prompt);
 
             if (confirmed) {
                 try {
-                    boolean success = StudentManagement.deleteStudent(selected.getStudentId());
-                    if (success) {
-                        AlertUtil.showInfo("Deleted", "Student record successfully deleted.");
-                        loadStudentsAsync();
+                    List<Student> toDelete = new ArrayList<>(selectedStudents);
+                    int deletedCount = 0;
+                    for (Student s : toDelete) {
+                        if (StudentManagement.deleteStudent(s.getStudentId())) {
+                            deletedCount++;
+                        }
                     }
+                    AlertUtil.showInfo("Deleted", "Successfully deleted " + deletedCount + " student record(s).");
+                    selectAllBtn.setText("Select All");
+                    loadStudentsAsync();
                 } catch (Exception ex) {
-                    AlertUtil.showError("Delete Error", "Cannot delete student: " + ex.getMessage());
+                    AlertUtil.showError("Delete Error", "Cannot delete student(s): " + ex.getMessage());
                 }
             }
         });

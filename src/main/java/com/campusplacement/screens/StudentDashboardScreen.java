@@ -9,6 +9,7 @@ import com.campusplacement.model.PlacementApplication;
 import com.campusplacement.model.PlacementDrive;
 import com.campusplacement.model.Student;
 import com.campusplacement.utils.AlertUtil;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TabPane;
@@ -167,13 +169,17 @@ public class StudentDashboardScreen {
         Button applyBtn = new Button("Apply for Selected Drive");
         applyBtn.getStyleClass().add("btn-primary");
 
+        Button selectAllDrivesBtn = new Button("Select All");
+        selectAllDrivesBtn.getStyleClass().add("btn-secondary");
+
         Button refreshBtn = new Button("Refresh Drives");
         refreshBtn.getStyleClass().add("btn-secondary");
 
-        actions.getChildren().addAll(checkEligBtn, applyBtn, refreshBtn);
+        actions.getChildren().addAll(checkEligBtn, applyBtn, selectAllDrivesBtn, refreshBtn);
 
         // Drives Table
         drivesTable = new TableView<>();
+        drivesTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         drivesTable.setItems(drivesList);
         VBox.setVgrow(drivesTable, Priority.ALWAYS);
 
@@ -242,44 +248,78 @@ public class StudentDashboardScreen {
         drivesTable.getColumns().addAll(compCol, roleCol, pkgCol, cgpaCol, deptCol, backlogsCol, skillsCol, deadlineCol, myStatusCol);
 
         // Events
-        refreshBtn.setOnAction(e -> loadStudentDrives(student));
+        refreshBtn.setOnAction(e -> {
+            selectAllDrivesBtn.setText("Select All");
+            loadStudentDrives(student);
+        });
+
+        selectAllDrivesBtn.setOnAction(e -> {
+            if (drivesTable.getSelectionModel().getSelectedItems().size() == drivesList.size() && !drivesList.isEmpty()) {
+                drivesTable.getSelectionModel().clearSelection();
+                selectAllDrivesBtn.setText("Select All");
+            } else {
+                drivesTable.getSelectionModel().selectAll();
+                selectAllDrivesBtn.setText("Deselect All");
+            }
+        });
 
         checkEligBtn.setOnAction(e -> {
-            PlacementDrive selected = drivesTable.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                AlertUtil.showWarning("No Drive Selected", "Please select a drive from the table to check eligibility.");
+            ObservableList<PlacementDrive> selectedList = drivesTable.getSelectionModel().getSelectedItems();
+            if (selectedList.isEmpty()) {
+                AlertUtil.showWarning("No Drive Selected", "Please select one or more drives from the table to check eligibility.");
                 return;
             }
             if (student == null) {
                 AlertUtil.showWarning("Profile Missing", "Your account is not linked to a student academic record.");
                 return;
             }
-            DriveManagement.EligibilityResult result = DriveManagement.checkEligibility(student, selected);
-            String appStatus = studentAppMap.get(selected.getDriveId());
-            String appInfo = (appStatus != null) ? "\n\nApplication Status: ALREADY APPLIED (" + appStatus + ")" : "\n\nApplication Status: NOT YET APPLIED";
 
-            if (result.isEligible()) {
-                AlertUtil.showInfo(
-                        "Eligibility Status: ELIGIBLE",
-                        "Great news! You meet all criteria for " + selected.getJobRole() + " at " + selected.getCompanyName() + ".\n\n"
-                                + "- Your CGPA: " + student.getCgpa() + " (Min: " + selected.getMinCgpa() + ")\n"
-                                + "- Your Dept: " + student.getDepartment() + "\n"
-                                + "- Your Backlogs: " + student.getBacklogCount() + " (Max: " + selected.getMaxBacklogs() + ")"
-                                + appInfo
-                );
+            if (selectedList.size() == 1) {
+                PlacementDrive selected = selectedList.get(0);
+                DriveManagement.EligibilityResult result = DriveManagement.checkEligibility(student, selected);
+                String appStatus = studentAppMap.get(selected.getDriveId());
+                String appInfo = (appStatus != null) ? "\n\nApplication Status: ALREADY APPLIED (" + appStatus + ")" : "\n\nApplication Status: NOT YET APPLIED";
+
+                if (result.isEligible()) {
+                    AlertUtil.showInfo(
+                            "Eligibility Status: ELIGIBLE",
+                            "Great news! You meet all criteria for " + selected.getJobRole() + " at " + selected.getCompanyName() + ".\n\n"
+                                    + "- Your CGPA: " + student.getCgpa() + " (Min: " + selected.getMinCgpa() + ")\n"
+                                    + "- Your Dept: " + student.getDepartment() + "\n"
+                                    + "- Your Backlogs: " + student.getBacklogCount() + " (Max: " + selected.getMaxBacklogs() + ")"
+                                    + appInfo
+                    );
+                } else {
+                    AlertUtil.showWarning(
+                            "Eligibility Status: NOT ELIGIBLE",
+                            "You are currently ineligible for this drive:\n\n- " + String.join("\n- ", result.getReasons())
+                                    + appInfo
+                    );
+                }
             } else {
-                AlertUtil.showWarning(
-                        "Eligibility Status: NOT ELIGIBLE",
-                        "You are currently ineligible for this drive:\n\n- " + String.join("\n- ", result.getReasons())
-                                + appInfo
-                );
+                StringBuilder sb = new StringBuilder("Eligibility Analysis for " + selectedList.size() + " Selected Placement Drives:\n\n");
+                int eligibleCount = 0;
+                for (PlacementDrive d : selectedList) {
+                    DriveManagement.EligibilityResult res = DriveManagement.checkEligibility(student, d);
+                    String status = studentAppMap.get(d.getDriveId());
+                    String appTag = (status != null) ? " [ALREADY APPLIED: " + status + "]" : " [NOT APPLIED]";
+                    if (res.isEligible()) {
+                        eligibleCount++;
+                        sb.append("✓ ").append(d.getCompanyName()).append(" - ").append(d.getJobRole()).append(": ELIGIBLE").append(appTag).append("\n");
+                    } else {
+                        sb.append("✗ ").append(d.getCompanyName()).append(" - ").append(d.getJobRole()).append(": NOT ELIGIBLE").append(appTag)
+                          .append(" (").append(String.join(", ", res.getReasons())).append(")\n");
+                    }
+                }
+                sb.append("\nSummary: ").append(eligibleCount).append(" of ").append(selectedList.size()).append(" drives eligible.");
+                AlertUtil.showInfo("Multi-Drive Eligibility Summary", sb.toString());
             }
         });
 
         applyBtn.setOnAction(e -> {
-            PlacementDrive selected = drivesTable.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                AlertUtil.showWarning("No Drive Selected", "Please select a drive to apply.");
+            ObservableList<PlacementDrive> selectedList = drivesTable.getSelectionModel().getSelectedItems();
+            if (selectedList.isEmpty()) {
+                AlertUtil.showWarning("No Drive Selected", "Please select one or more drives from the table to apply.");
                 return;
             }
             if (student == null) {
@@ -287,56 +327,128 @@ public class StudentDashboardScreen {
                 return;
             }
 
-            // 1. Check if already applied
-            if (studentAppMap.containsKey(selected.getDriveId())) {
-                String curStatus = studentAppMap.get(selected.getDriveId());
-                AlertUtil.showInfo(
-                        "Already Applied",
-                        "You have already applied for " + selected.getJobRole() + " at " + selected.getCompanyName() + ".\n\n"
-                                + "Current Recruitment Status: " + curStatus + "\n\n"
-                                + "You can track stage updates, interview timings, and officer notes in the 'My Applied Drives' tab."
+            if (selectedList.size() == 1) {
+                PlacementDrive selected = selectedList.get(0);
+                // 1. Check if already applied
+                if (studentAppMap.containsKey(selected.getDriveId())) {
+                    String curStatus = studentAppMap.get(selected.getDriveId());
+                    AlertUtil.showInfo(
+                            "Already Applied",
+                            "You have already applied for " + selected.getJobRole() + " at " + selected.getCompanyName() + ".\n\n"
+                                    + "Current Recruitment Status: " + curStatus + "\n\n"
+                                    + "You can track stage updates, interview timings, and officer notes in the 'My Applied Drives' tab."
+                    );
+                    return;
+                }
+
+                // 2. Check eligibility before applying
+                DriveManagement.EligibilityResult eligibility = DriveManagement.checkEligibility(student, selected);
+                if (!eligibility.isEligible()) {
+                    AlertUtil.showWarning(
+                            "Ineligible to Apply",
+                            "You do not meet the minimum eligibility criteria for " + selected.getJobRole() + " at " + selected.getCompanyName() + ":\n\n- "
+                                    + String.join("\n- ", eligibility.getReasons())
+                    );
+                    return;
+                }
+
+                // 3. Confirm submission
+                boolean confirm = AlertUtil.showConfirmation(
+                        "Confirm Application Submission",
+                        "Do you want to apply for " + selected.getJobRole() + " at " + selected.getCompanyName() + " (Package: " + selected.getPackageLpa() + " LPA)?"
                 );
-                return;
-            }
 
-            // 2. Check eligibility before applying
-            DriveManagement.EligibilityResult eligibility = DriveManagement.checkEligibility(student, selected);
-            if (!eligibility.isEligible()) {
-                AlertUtil.showWarning(
-                        "Ineligible to Apply",
-                        "You do not meet the minimum eligibility criteria for " + selected.getJobRole() + " at " + selected.getCompanyName() + ":\n\n- "
-                                + String.join("\n- ", eligibility.getReasons())
-                );
-                return;
-            }
+                if (confirm) {
+                    try {
+                        boolean success = ApplicationManagement.applyForDrive(selected.getDriveId(), student.getStudentId(), "Applied via Student Portal");
+                        if (success) {
+                            studentAppMap.put(selected.getDriveId(), "Applied");
+                            drivesTable.refresh();
+                            loadStudentApps(student);
 
-            // 3. Confirm submission
-            boolean confirm = AlertUtil.showConfirmation(
-                    "Confirm Application Submission",
-                    "Do you want to apply for " + selected.getJobRole() + " at " + selected.getCompanyName() + " (Package: " + selected.getPackageLpa() + " LPA)?"
-            );
+                            AlertUtil.showInfo(
+                                    "Application Submitted Successfully",
+                                    "Applied successfully!\n\n"
+                                            + "Your application for " + selected.getJobRole() + " at " + selected.getCompanyName() + " has been submitted.\n\n"
+                                            + "Switching to 'My Applied Drives' tab to review your submission."
+                            );
 
-            if (confirm) {
-                try {
-                    boolean success = ApplicationManagement.applyForDrive(selected.getDriveId(), student.getStudentId(), "Applied via Student Portal");
-                    if (success) {
-                        studentAppMap.put(selected.getDriveId(), "Applied");
-                        drivesTable.refresh();
-                        loadStudentApps(student);
+                            if (tabPane != null && appsTab != null) {
+                                tabPane.getSelectionModel().select(appsTab);
+                            }
+                        }
+                    } catch (Exception ex) {
+                        AlertUtil.showError("Application Error", ex.getMessage());
+                    }
+                }
+            } else {
+                // Multi-drive batch application
+                List<PlacementDrive> toApply = new ArrayList<>();
+                List<String> alreadyAppliedNames = new ArrayList<>();
+                List<String> ineligibleNames = new ArrayList<>();
 
-                        AlertUtil.showInfo(
-                                "Application Submitted Successfully",
-                                "Applied successfully!\n\n"
-                                        + "Your application for " + selected.getJobRole() + " at " + selected.getCompanyName() + " has been submitted.\n\n"
-                                        + "Switching to 'My Applied Drives' tab to review your submission."
-                        );
-
-                        if (tabPane != null && appsTab != null) {
-                            tabPane.getSelectionModel().select(appsTab);
+                for (PlacementDrive d : selectedList) {
+                    if (studentAppMap.containsKey(d.getDriveId())) {
+                        alreadyAppliedNames.add(d.getCompanyName() + " (" + d.getJobRole() + ")");
+                    } else {
+                        DriveManagement.EligibilityResult res = DriveManagement.checkEligibility(student, d);
+                        if (res.isEligible()) {
+                            toApply.add(d);
+                        } else {
+                            ineligibleNames.add(d.getCompanyName() + " (" + d.getJobRole() + ")");
                         }
                     }
-                } catch (Exception ex) {
-                    AlertUtil.showError("Application Error", ex.getMessage());
+                }
+
+                if (toApply.isEmpty()) {
+                    StringBuilder msg = new StringBuilder("None of the selected drives can be applied to:\n\n");
+                    if (!alreadyAppliedNames.isEmpty()) {
+                        msg.append("Already Applied:\n- ").append(String.join("\n- ", alreadyAppliedNames)).append("\n\n");
+                    }
+                    if (!ineligibleNames.isEmpty()) {
+                        msg.append("Ineligible:\n- ").append(String.join("\n- ", ineligibleNames));
+                    }
+                    AlertUtil.showWarning("Cannot Apply", msg.toString());
+                    return;
+                }
+
+                StringBuilder prompt = new StringBuilder("Do you want to apply to the following " + toApply.size() + " eligible placement drive(s)?\n\n");
+                for (PlacementDrive d : toApply) {
+                    prompt.append("• ").append(d.getCompanyName()).append(" - ").append(d.getJobRole()).append(" (").append(d.getPackageLpa()).append(" LPA)\n");
+                }
+                if (!alreadyAppliedNames.isEmpty()) {
+                    prompt.append("\n(Skipping ").append(alreadyAppliedNames.size()).append(" already applied)");
+                }
+                if (!ineligibleNames.isEmpty()) {
+                    prompt.append("\n(Skipping ").append(ineligibleNames.size()).append(" ineligible)");
+                }
+
+                boolean confirm = AlertUtil.showConfirmation("Confirm Batch Application Submission", prompt.toString());
+                if (confirm) {
+                    int appliedCount = 0;
+                    for (PlacementDrive d : toApply) {
+                        try {
+                            if (ApplicationManagement.applyForDrive(d.getDriveId(), student.getStudentId(), "Batch applied via Student Portal")) {
+                                studentAppMap.put(d.getDriveId(), "Applied");
+                                appliedCount++;
+                            }
+                        } catch (Exception ex) {
+                            System.err.println("Error applying to drive ID " + d.getDriveId() + ": " + ex.getMessage());
+                        }
+                    }
+                    drivesTable.refresh();
+                    loadStudentApps(student);
+
+                    AlertUtil.showInfo(
+                            "Batch Application Completed",
+                            "Successfully submitted " + appliedCount + " placement application(s)!\n\n"
+                                    + "Switching to 'My Applied Drives' tab to review your active applications."
+                    );
+                    selectAllDrivesBtn.setText("Select All");
+
+                    if (tabPane != null && appsTab != null) {
+                        tabPane.getSelectionModel().select(appsTab);
+                    }
                 }
             }
         });
@@ -374,10 +486,22 @@ public class StudentDashboardScreen {
         Label title = new Label("My Placement Applications & Recruitment Stages");
         title.getStyleClass().add("view-header");
 
+        HBox appActions = new HBox(12);
+        appActions.setAlignment(Pos.CENTER_LEFT);
+
+        Button selectAllAppsBtn = new Button("Select All");
+        selectAllAppsBtn.getStyleClass().add("btn-secondary");
+
+        Button withdrawBtn = new Button("Withdraw / Delete Application");
+        withdrawBtn.getStyleClass().add("btn-danger");
+
         Button refreshBtn = new Button("Refresh Application Status");
         refreshBtn.getStyleClass().add("btn-secondary");
 
+        appActions.getChildren().addAll(selectAllAppsBtn, withdrawBtn, refreshBtn);
+
         myAppsTable = new TableView<>();
+        myAppsTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         myAppsTable.setItems(myAppsList);
         VBox.setVgrow(myAppsTable, Priority.ALWAYS);
 
@@ -410,9 +534,57 @@ public class StudentDashboardScreen {
 
         myAppsTable.getColumns().addAll(compCol, roleCol, pkgCol, statusCol, dateCol, remarksCol);
 
-        refreshBtn.setOnAction(e -> loadStudentApps(student));
+        refreshBtn.setOnAction(e -> {
+            selectAllAppsBtn.setText("Select All");
+            loadStudentApps(student);
+        });
 
-        box.getChildren().addAll(title, refreshBtn, myAppsTable);
+        selectAllAppsBtn.setOnAction(e -> {
+            if (myAppsTable.getSelectionModel().getSelectedItems().size() == myAppsList.size() && !myAppsList.isEmpty()) {
+                myAppsTable.getSelectionModel().clearSelection();
+                selectAllAppsBtn.setText("Select All");
+            } else {
+                myAppsTable.getSelectionModel().selectAll();
+                selectAllAppsBtn.setText("Deselect All");
+            }
+        });
+
+        withdrawBtn.setOnAction(e -> {
+            ObservableList<PlacementApplication> selectedApps = myAppsTable.getSelectionModel().getSelectedItems();
+            if (selectedApps.isEmpty()) {
+                AlertUtil.showWarning("No Selection", "Please select one or more applications from the table to withdraw/delete.");
+                return;
+            }
+
+            int count = selectedApps.size();
+            String confirmPrompt = (count == 1)
+                    ? "Are you sure you want to withdraw your application for " + selectedApps.get(0).getCompanyName() + " (" + selectedApps.get(0).getJobRole() + ")?\nThis will remove your application record."
+                    : "Are you sure you want to withdraw ALL " + count + " selected applications?\nThis will remove your application records.";
+
+            boolean confirm = AlertUtil.showConfirmation("Withdraw Application(s)", confirmPrompt);
+            if (confirm) {
+                try {
+                    List<PlacementApplication> toDelete = new ArrayList<>(selectedApps);
+                    int delCount = 0;
+                    for (PlacementApplication a : toDelete) {
+                        if (ApplicationManagement.deleteApplication(a.getApplicationId())) {
+                            studentAppMap.remove(a.getDriveId());
+                            delCount++;
+                        }
+                    }
+                    AlertUtil.showInfo("Application(s) Withdrawn", "Successfully withdrawn " + delCount + " application(s).");
+                    selectAllAppsBtn.setText("Select All");
+                    loadStudentApps(student);
+                    if (drivesTable != null) {
+                        drivesTable.refresh();
+                    }
+                } catch (Exception ex) {
+                    AlertUtil.showError("Withdraw Error", "Cannot withdraw application(s): " + ex.getMessage());
+                }
+            }
+        });
+
+        box.getChildren().addAll(title, appActions, myAppsTable);
         loadStudentApps(student);
 
         return box;

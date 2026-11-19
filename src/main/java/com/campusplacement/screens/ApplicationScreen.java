@@ -5,6 +5,7 @@ import com.campusplacement.management.LoginManagement;
 import com.campusplacement.model.PlacementApplication;
 import com.campusplacement.utils.AlertUtil;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -20,6 +21,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -77,13 +79,17 @@ public class ApplicationScreen {
         Button deleteAppBtn = new Button("Delete Application");
         deleteAppBtn.getStyleClass().add("btn-danger");
 
+        Button selectAllBtn = new Button("Select All");
+        selectAllBtn.getStyleClass().add("btn-secondary");
+
         Button refreshBtn = new Button("Refresh");
         refreshBtn.getStyleClass().add("btn-secondary");
 
-        toolbar.getChildren().addAll(searchField, statusFilter, updateStatusBtn, historyBtn, deleteAppBtn, refreshBtn);
+        toolbar.getChildren().addAll(searchField, statusFilter, updateStatusBtn, historyBtn, deleteAppBtn, selectAllBtn, refreshBtn);
 
         // TableView Configuration
         appTable = new TableView<>();
+        appTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         appTable.setItems(appList);
         VBox.setVgrow(appTable, Priority.ALWAYS);
 
@@ -159,23 +165,42 @@ public class ApplicationScreen {
             showHistoryDialog(selected);
         });
 
+        selectAllBtn.setOnAction(e -> {
+            if (appTable.getSelectionModel().getSelectedItems().size() == appList.size() && !appList.isEmpty()) {
+                appTable.getSelectionModel().clearSelection();
+                selectAllBtn.setText("Select All");
+            } else {
+                appTable.getSelectionModel().selectAll();
+                selectAllBtn.setText("Deselect All");
+            }
+        });
+
         deleteAppBtn.setOnAction(e -> {
-            PlacementApplication selected = appTable.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                AlertUtil.showWarning("No Selection", "Please select an application from the table to delete.");
+            ObservableList<PlacementApplication> selected = appTable.getSelectionModel().getSelectedItems();
+            if (selected.isEmpty()) {
+                AlertUtil.showWarning("No Selection", "Please select one or more applications from the table to delete.");
                 return;
             }
-            boolean confirm = AlertUtil.showConfirmation(
-                    "Delete Application Record",
-                    "Are you sure you want to delete application #" + selected.getApplicationId() + " for " + selected.getStudentName() + " (" + selected.getCompanyName() + " - " + selected.getJobRole() + ")?\nThis action cannot be undone."
-            );
+            int count = selected.size();
+            String confirmPrompt = (count == 1)
+                    ? "Are you sure you want to delete application #" + selected.get(0).getApplicationId() + " for " + selected.get(0).getStudentName() + " (" + selected.get(0).getCompanyName() + " - " + selected.get(0).getJobRole() + ")?\nThis action cannot be undone."
+                    : "Are you sure you want to delete ALL " + count + " selected application records?\nThis action cannot be undone.";
+
+            boolean confirm = AlertUtil.showConfirmation("Delete Application Record(s)", confirmPrompt);
             if (confirm) {
                 try {
-                    ApplicationManagement.deleteApplication(selected.getApplicationId());
-                    AlertUtil.showInfo("Application Deleted", "Application #" + selected.getApplicationId() + " successfully deleted.");
+                    List<PlacementApplication> toDelete = new ArrayList<>(selected);
+                    int delCount = 0;
+                    for (PlacementApplication a : toDelete) {
+                        if (ApplicationManagement.deleteApplication(a.getApplicationId())) {
+                            delCount++;
+                        }
+                    }
+                    AlertUtil.showInfo("Application(s) Deleted", "Successfully removed " + delCount + " application(s).");
+                    selectAllBtn.setText("Select All");
                     loadApplications();
                 } catch (Exception ex) {
-                    AlertUtil.showError("Delete Error", "Cannot delete application: " + ex.getMessage());
+                    AlertUtil.showError("Delete Error", "Cannot delete application(s): " + ex.getMessage());
                 }
             }
         });

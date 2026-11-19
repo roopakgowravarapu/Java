@@ -3,6 +3,7 @@ package com.campusplacement.screens;
 import com.campusplacement.management.CompanyManagement;
 import com.campusplacement.model.Company;
 import com.campusplacement.utils.AlertUtil;
+import java.util.ArrayList;
 import java.util.List;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -15,6 +16,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -79,13 +81,17 @@ public class CompanyScreen {
         Button deleteBtn = new Button("Delete");
         deleteBtn.getStyleClass().add("btn-danger");
 
+        Button selectAllBtn = new Button("Select All");
+        selectAllBtn.getStyleClass().add("btn-secondary");
+
         Button refreshBtn = new Button("Refresh");
         refreshBtn.getStyleClass().add("btn-secondary");
 
-        toolbar.getChildren().addAll(searchField, industryFilter, addBtn, editBtn, deleteBtn, refreshBtn);
+        toolbar.getChildren().addAll(searchField, industryFilter, addBtn, editBtn, deleteBtn, selectAllBtn, refreshBtn);
 
         // TableView Configuration
         companyTable = new TableView<>();
+        companyTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         companyTable.setItems(companyList);
         VBox.setVgrow(companyTable, Priority.ALWAYS);
 
@@ -135,20 +141,39 @@ public class CompanyScreen {
             showCompanyForm(selected);
         });
 
+        selectAllBtn.setOnAction(e -> {
+            if (companyTable.getSelectionModel().getSelectedItems().size() == companyList.size() && !companyList.isEmpty()) {
+                companyTable.getSelectionModel().clearSelection();
+                selectAllBtn.setText("Select All");
+            } else {
+                companyTable.getSelectionModel().selectAll();
+                selectAllBtn.setText("Deselect All");
+            }
+        });
+
         deleteBtn.setOnAction(e -> {
-            Company selected = companyTable.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                AlertUtil.showWarning("No Selection", "Please select a company to delete.");
+            ObservableList<Company> selected = companyTable.getSelectionModel().getSelectedItems();
+            if (selected.isEmpty()) {
+                AlertUtil.showWarning("No Selection", "Please select one or more companies to delete.");
                 return;
             }
-            boolean confirm = AlertUtil.showConfirmation(
-                    "Delete Company",
-                    "Are you sure you want to delete company: " + selected.getCompanyName() + "?\nAll drives and applications for this company will be removed."
-            );
+            int count = selected.size();
+            String confirmPrompt = (count == 1)
+                    ? "Are you sure you want to delete company: " + selected.get(0).getCompanyName() + "?\nAll drives and applications for this company will be removed."
+                    : "Are you sure you want to delete ALL " + count + " selected companies?\nAll associated drives and applications will also be removed.";
+
+            boolean confirm = AlertUtil.showConfirmation("Delete Company/Companies", confirmPrompt);
             if (confirm) {
                 try {
-                    CompanyManagement.deleteCompany(selected.getCompanyId());
-                    AlertUtil.showInfo("Deleted", "Company removed successfully.");
+                    List<Company> toDelete = new ArrayList<>(selected);
+                    int delCount = 0;
+                    for (Company c : toDelete) {
+                        if (CompanyManagement.deleteCompany(c.getCompanyId())) {
+                            delCount++;
+                        }
+                    }
+                    AlertUtil.showInfo("Deleted", "Successfully removed " + delCount + " company record(s).");
+                    selectAllBtn.setText("Select All");
                     loadCompanies();
                 } catch (Exception ex) {
                     AlertUtil.showError("Delete Error", ex.getMessage());

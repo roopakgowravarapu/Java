@@ -27,6 +27,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
@@ -88,13 +89,17 @@ public class DriveScreen {
         Button deleteBtn = new Button("Delete");
         deleteBtn.getStyleClass().add("btn-danger");
 
+        Button selectAllBtn = new Button("Select All");
+        selectAllBtn.getStyleClass().add("btn-secondary");
+
         Button refreshBtn = new Button("Refresh");
         refreshBtn.getStyleClass().add("btn-secondary");
 
-        toolbar.getChildren().addAll(searchField, statusFilter, addBtn, editBtn, eligibleBtn, deleteBtn, refreshBtn);
+        toolbar.getChildren().addAll(searchField, statusFilter, addBtn, editBtn, eligibleBtn, deleteBtn, selectAllBtn, refreshBtn);
 
         // TableView Configuration
         driveTable = new TableView<>();
+        driveTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         driveTable.setItems(driveList);
         VBox.setVgrow(driveTable, Priority.ALWAYS);
 
@@ -161,20 +166,39 @@ public class DriveScreen {
             showEligibleStudentsDialog(selected);
         });
 
+        selectAllBtn.setOnAction(e -> {
+            if (driveTable.getSelectionModel().getSelectedItems().size() == driveList.size() && !driveList.isEmpty()) {
+                driveTable.getSelectionModel().clearSelection();
+                selectAllBtn.setText("Select All");
+            } else {
+                driveTable.getSelectionModel().selectAll();
+                selectAllBtn.setText("Deselect All");
+            }
+        });
+
         deleteBtn.setOnAction(e -> {
-            PlacementDrive selected = driveTable.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                AlertUtil.showWarning("No Selection", "Please select a placement drive to delete.");
+            ObservableList<PlacementDrive> selected = driveTable.getSelectionModel().getSelectedItems();
+            if (selected.isEmpty()) {
+                AlertUtil.showWarning("No Selection", "Please select one or more placement drives to delete.");
                 return;
             }
-            boolean confirm = AlertUtil.showConfirmation(
-                    "Delete Placement Drive",
-                    "Are you sure you want to delete Drive #" + selected.getDriveId() + " (" + selected.getCompanyName() + " - " + selected.getJobRole() + ")?"
-            );
+            int count = selected.size();
+            String confirmPrompt = (count == 1)
+                    ? "Are you sure you want to delete Drive #" + selected.get(0).getDriveId() + " (" + selected.get(0).getCompanyName() + " - " + selected.get(0).getJobRole() + ")?"
+                    : "Are you sure you want to delete ALL " + count + " selected placement drives?";
+
+            boolean confirm = AlertUtil.showConfirmation("Delete Placement Drive(s)", confirmPrompt);
             if (confirm) {
                 try {
-                    DriveManagement.deleteDrive(selected.getDriveId());
-                    AlertUtil.showInfo("Deleted", "Placement drive deleted successfully.");
+                    List<PlacementDrive> toDelete = new ArrayList<>(selected);
+                    int delCount = 0;
+                    for (PlacementDrive d : toDelete) {
+                        if (DriveManagement.deleteDrive(d.getDriveId())) {
+                            delCount++;
+                        }
+                    }
+                    AlertUtil.showInfo("Deleted", "Successfully deleted " + delCount + " placement drive(s).");
+                    selectAllBtn.setText("Select All");
                     loadDrives();
                 } catch (Exception ex) {
                     AlertUtil.showError("Delete Error", ex.getMessage());
@@ -289,9 +313,22 @@ public class DriveScreen {
             cbIT.setSelected(true);
         }
 
+        Button toggleAllDeptsBtn = new Button("Select All");
+        toggleAllDeptsBtn.setStyle("-fx-font-size: 11px; -fx-padding: 3px 8px;");
+        toggleAllDeptsBtn.setOnAction(e -> {
+            boolean allChecked = cbCS.isSelected() && cbIT.isSelected() && cbEC.isSelected() && cbEE.isSelected() && cbME.isSelected();
+            boolean newVal = !allChecked;
+            cbCS.setSelected(newVal);
+            cbIT.setSelected(newVal);
+            cbEC.setSelected(newVal);
+            cbEE.setSelected(newVal);
+            cbME.setSelected(newVal);
+            toggleAllDeptsBtn.setText(newVal ? "Deselect All" : "Select All");
+        });
+
         FlowPane deptPane = new FlowPane(12, 8);
         deptPane.setPrefWrapLength(340);
-        deptPane.getChildren().addAll(cbCS, cbIT, cbEC, cbEE, cbME);
+        deptPane.getChildren().addAll(cbCS, cbIT, cbEC, cbEE, cbME, toggleAllDeptsBtn);
 
         TextField backlogsField = new TextField("0");
 
