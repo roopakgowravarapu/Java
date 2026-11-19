@@ -58,39 +58,79 @@ public class StudentManagement {
     }
 
     /**
-     * Inserts a new student into the database with validation.
+     * Inserts a new student into the database and automatically provisions
+     * a login user account in the users table within an atomic transaction.
      */
-    public static boolean addStudent(Student student) throws SQLException {
+    public static boolean addStudent(Student student, String plainPassword) throws SQLException {
         validateStudent(student, 0);
 
-        String sql = "INSERT INTO students (roll_number, full_name, email, phone_number, "
+        String insertStudentSql = "INSERT INTO students (roll_number, full_name, email, phone_number, "
                    + "department, cgpa, graduation_year, skills, backlog_count) "
                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        String insertUserSql = "INSERT INTO users (username, password_hash, role, email, student_id) "
+                   + "VALUES (?, ?, 'STUDENT', ?, ?)";
 
-            stmt.setString(1, student.getRollNumber().trim().toUpperCase());
-            stmt.setString(2, student.getFullName().trim());
-            stmt.setString(3, student.getEmail().trim());
-            stmt.setString(4, student.getPhoneNumber().trim());
-            stmt.setString(5, student.getDepartment().trim());
-            stmt.setDouble(6, student.getCgpa());
-            stmt.setInt(7, student.getGraduationYear());
-            stmt.setString(8, student.getSkills().trim());
-            stmt.setInt(9, student.getBacklogCount());
+        try (Connection conn = DBConnection.getConnection()) {
+            conn.setAutoCommit(false); // Begin Transaction
+            try {
+                int studentId = 0;
+                try (PreparedStatement stmt = conn.prepareStatement(insertStudentSql, Statement.RETURN_GENERATED_KEYS)) {
+                    stmt.setString(1, student.getRollNumber().trim().toUpperCase());
+                    stmt.setString(2, student.getFullName().trim());
+                    stmt.setString(3, student.getEmail().trim());
+                    stmt.setString(4, student.getPhoneNumber().trim());
+                    stmt.setString(5, student.getDepartment().trim());
+                    stmt.setDouble(6, student.getCgpa());
+                    stmt.setInt(7, student.getGraduationYear());
+                    stmt.setString(8, student.getSkills().trim());
+                    stmt.setInt(9, student.getBacklogCount());
 
-            int affectedRows = stmt.executeUpdate();
-            if (affectedRows > 0) {
-                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        student.setStudentId(generatedKeys.getInt(1));
+                    int affectedRows = stmt.executeUpdate();
+                    if (affectedRows > 0) {
+                        try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                            if (generatedKeys.next()) {
+                                studentId = generatedKeys.getInt(1);
+                                student.setStudentId(studentId);
+                            }
+                        }
+                    } else {
+                        conn.rollback();
+                        return false;
                     }
                 }
+
+                // Automatically provision Student Login Account in users table
+                String pwd = (plainPassword != null && !plainPassword.trim().isEmpty())
+                        ? plainPassword.trim()
+                        : (student.getRollNumber().trim().toLowerCase() + "123");
+                String passwordHash = ValidationUtil.hashPassword(pwd);
+
+                try (PreparedStatement stmt = conn.prepareStatement(insertUserSql)) {
+                    // Student can log in with roll number (lowercase) or email
+                    stmt.setString(1, student.getRollNumber().trim().toLowerCase());
+                    stmt.setString(2, passwordHash);
+                    stmt.setString(3, student.getEmail().trim().toLowerCase());
+                    stmt.setInt(4, studentId);
+                    stmt.executeUpdate();
+                }
+
+                conn.commit(); // Commit Transaction
                 return true;
+            } catch (Exception ex) {
+                conn.rollback();
+                throw new SQLException("Failed to register student and user account: " + ex.getMessage(), ex);
+            } finally {
+                conn.setAutoCommit(true);
             }
         }
-        return false;
+    }
+
+    /**
+     * Overload for adding student with default rollNumber + "123" password.
+     */
+    public static boolean addStudent(Student student) throws SQLException {
+        return addStudent(student, null);
     }
 
     /**
@@ -122,14 +162,32 @@ public class StudentManagement {
     }
 
     /**
-     * Deletes a student record by ID.
+     * Deletes a student record and their associated user login account.
      */
     public static boolean deleteStudent(int studentId) throws SQLException {
-        String sql = "DELETE FROM students WHERE student_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, studentId);
-            return stmt.executeUpdate() > 0;
+        String deleteUserSql = "DELETE FROM users WHERE student_id = ?";
+        String deleteStudentSql = "DELETE FROM students WHERE student_id = ?";
+
+        try (Connection conn = DBConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement stmt = conn.prepareStatement(deleteUserSql)) {
+                    stmt.setInt(1, studentId);
+                    stmt.executeUpdate();
+                }
+                boolean deleted;
+                try (PreparedStatement stmt = conn.prepareStatement(deleteStudentSql)) {
+                    stmt.setInt(1, studentId);
+                    deleted = stmt.executeUpdate() > 0;
+                }
+                conn.commit();
+                return deleted;
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
+            }
         }
     }
 
