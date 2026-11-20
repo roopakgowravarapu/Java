@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Campus Placement System - Database Records</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 25px; }
+        .header { background: #1e293b; padding: 20px 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #334155; }
+        h1 { margin: 0 0 8px 0; font-size: 22px; color: #38bdf8; }
+        p { margin: 0; color: #94a3b8; font-size: 14px; }
+        .file-path { background: #0f172a; padding: 6px 12px; border-radius: 6px; font-family: monospace; color: #fbbf24; display: inline-block; margin-top: 8px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 25px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+        .card-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+        .badge { background: #0284c7; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: #334155; color: #cbd5e1; text-align: left; padding: 12px; font-weight: 600; }
+        td { padding: 12px; border-bottom: 1px solid #334155; color: #e2e8f0; }
+        tr:hover td { background: #273549; }
+        .highlight { background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: bold; padding: 3px 8px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Campus Placement System - Live Database Contents</h1>
+        <p>Direct view of data stored in SQLite database file:</p>
+        <span class="file-path">c:\Users\roopa\Downloads\Java\campus_placement.db</span>
+    </div>
+
+    <!-- STUDENTS TABLE -->
+    <div class="card">
+        <div class="card-title">
+            <span>TABLE: students</span>
+            <span class="badge">1 Record</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>student_id</th>
+                    <th>roll_number</th>
+                    <th>full_name</th>
+                    <th>email</th>
+                    <th>phone_number</th>
+                    <th>department</th>
+                    <th>cgpa</th>
+                    <th>grad_year</th>
+                    <th>skills</th>
+                    <th>backlogs</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>12</strong></td>
+                    <td><span class="highlight">A123</span></td>
+                    <td><strong style="color:#38bdf8;">ROOPAK</strong></td>
+                    <td>ROOPAK@GMAIL.COM</td>
+                    <td>7418529637</td>
+                    <td>Computer Science</td>
+                    <td><strong style="color:#4ade80;">9.20</strong></td>
+                    <td>2026</td>
+                    <td>JAVA</td>
+                    <td>0</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- USERS TABLE -->
+    <div class="card">
+        <div class="card-title">
+            <span>TABLE: users (Authentication Logins)</span>
+            <span class="badge">2 Records</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>user_id</th>
+                    <th>username</th>
+                    <th>role</th>
+                    <th>email</th>
+                    <th>linked student_id</th>
+                    <th>password note</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td><strong>officer</strong></td>
+                    <td><span class="badge" style="background:#8b5cf6;">OFFICER</span></td>
+                    <td>placement.officer@college.edu</td>
+                    <td><em>NULL</em></td>
+                    <td>password: <code>officer123</code></td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td><span class="highlight">a123</span></td>
+                    <td><span class="badge" style="background:#10b981;">STUDENT</span></td>
+                    <td>roopak@gmail.com</td>
+                    <td><strong>12</strong></td>
+                    <td>password: <code>student123</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
